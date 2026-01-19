@@ -4,16 +4,18 @@ import re
 def parse_json_response(response):
     """
     Parses the response from Gemini.
-    Attempts to access response.parsed (if available).
-    Falls back to parsing response.text, handling Markdown code blocks.
-    """
-    try:
-        # Check if the attribute exists and is not None
-        if hasattr(response, "parsed") and response.parsed is not None:
-            return response.parsed
-    except Exception:
-        pass
     
+    NOTE: With the new google-genai SDK, response.parsed is preferred.
+    This function is kept for backward compatibility with tests.
+    """
+    # For new SDK, check for parsed attribute first
+    if hasattr(response, "parsed") and response.parsed is not None:
+        # If already a Pydantic model, return its dict representation
+        if hasattr(response.parsed, "model_dump"):
+            return response.parsed.model_dump()
+        return response.parsed
+    
+    # Fallback to text parsing
     text = response.text
     if not text:
         raise ValueError("Response text is empty.")

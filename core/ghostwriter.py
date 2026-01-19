@@ -1,12 +1,11 @@
-from core.llm import get_gemini_model, get_clean_schema
+from core.llm import get_gemini_client, DEFAULT_MODEL
 from models.schemas import EventFacts, EventNarrative
-from utils.parsing import parse_json_response
 
 def generate_narrative(facts: EventFacts, raw_context: str) -> EventNarrative:
     """
     Uses a creative, medium-temperature LLM call to write the narrative sections.
     """
-    model = get_gemini_model()
+    client = get_gemini_client()
     
     facts_dict = facts.model_dump(exclude_none=True)
     
@@ -27,13 +26,14 @@ def generate_narrative(facts: EventFacts, raw_context: str) -> EventNarrative:
     4. Provide the output in the specified JSON structure.
     """
     
-    response = model.generate_content(
-        prompt,
-        generation_config={
+    response = client.models.generate_content(
+        model=DEFAULT_MODEL,
+        contents=prompt,
+        config={
             "response_mime_type": "application/json",
-            "response_schema": get_clean_schema(EventNarrative),
+            "response_schema": EventNarrative,
             "temperature": 0.3
         }
     )
     
-    return EventNarrative(**parse_json_response(response))
+    return response.parsed

@@ -1,12 +1,12 @@
 from typing import List
-from core.llm import get_gemini_model
+from core.llm import get_gemini_client, DEFAULT_MODEL
 
 def check_consistency(original_text: str, report_text: str) -> List[str]:
     """
     Compares the generated report against the original text to find hallucinations.
     Returns a list of warnings (strings). Returns empty list if clean.
     """
-    model = get_gemini_model()
+    client = get_gemini_client()
     
     prompt = f"""
     You are a strict Compliance Auditor.
@@ -28,7 +28,11 @@ def check_consistency(original_text: str, report_text: str) -> List[str]:
     Return ONLY the list of issues, or "SAFE".
     """
     
-    response = model.generate_content(prompt)
+    response = client.models.generate_content(
+        model=DEFAULT_MODEL,
+        contents=prompt
+    )
+    
     if not response.text:
         return []
         

@@ -1,34 +1,34 @@
-from core.llm import get_clean_schema
-from models.schemas import EventNarrative, EventFacts
+# Schema cleaning tests are no longer needed with the new google-genai SDK.
+# The new SDK handles Pydantic models directly without requiring schema cleaning.
+
+import pytest
+from models.schemas import EventFacts, EventNarrative
 from pydantic import BaseModel, Field
 from typing import Optional
 
-def test_get_clean_schema_removes_defaults():
-    class TestModel(BaseModel):
-        name: str = Field(default="Unknown")
+def test_pydantic_models_are_valid():
+    """Verify our Pydantic models are well-formed for the new SDK."""
+    # EventFacts with optional fields
+    facts = EventFacts(event_title="Test Event", date=None)
+    assert facts.event_title == "Test Event"
+    assert facts.date is None
     
-    clean = get_clean_schema(TestModel)
-    assert "default" not in clean["properties"]["name"]
-
-def test_get_clean_schema_handles_optional():
-    """Verify that Optional[str] (anyOf) is converted to type: string, nullable: true."""
-    class TestModel(BaseModel):
-        opt_field: Optional[str] = None
-        
-    clean = get_clean_schema(TestModel)
-    prop = clean["properties"]["opt_field"]
+def test_event_facts_schema_export():
+    """Verify EventFacts can export JSON schema (used by new SDK)."""
+    schema = EventFacts.model_json_schema()
+    assert "properties" in schema
+    assert "event_title" in schema["properties"]
     
-    # Check that anyOf is gone
-    assert "anyOf" not in prop
-    # Check that type is string
-    assert prop["type"] == "string"
-    # Check that nullable is True
-    assert prop.get("nullable") is True
+def test_event_narrative_schema_export():
+    """Verify EventNarrative can export JSON schema."""
+    schema = EventNarrative.model_json_schema()
+    assert "properties" in schema
+    assert "executive_summary" in schema["properties"]
+    assert "key_takeaways" in schema["properties"]
 
-def test_real_models():
-    """Verify EventFacts schema is clean."""
-    clean = get_clean_schema(EventFacts)
-    # event_title is Optional[str]
-    assert "anyOf" not in clean["properties"]["event_title"]
-    assert clean["properties"]["event_title"]["type"] == "string"
-    assert clean["properties"]["event_title"]["nullable"] is True
+def test_optional_fields_in_schema():
+    """Verify optional fields are properly represented."""
+    schema = EventFacts.model_json_schema()
+    # The new SDK handles anyOf for Optional[T] natively
+    # Just verify the schema is exportable and complete
+    assert len(schema["properties"]) == 5  # All 5 fields present
