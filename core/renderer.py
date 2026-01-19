@@ -1,38 +1,61 @@
+import re
 from io import BytesIO
 from docxtpl import DocxTemplate
 from models.schemas import FullReport
 
+
+def sanitize_jinja_input(value: str) -> str:
+    """
+    Escapes Jinja2 control characters to prevent template injection.
+    Replaces {{ }} and {% %} with safe alternatives.
+    """
+    if not isinstance(value, str):
+        return value
+    # Escape Jinja2 delimiters
+    value = re.sub(r'\{\{', '{ {', value)
+    value = re.sub(r'\}\}', '} }', value)
+    value = re.sub(r'\{%', '{ %', value)
+    value = re.sub(r'%\}', '% }', value)
+    return value
+
+
 def sanitize_view_model(report: FullReport) -> dict:
     """
     Prepares the report data for the template.
-    Handles None values, formatting, etc.
+    Handles None values, formatting, and security sanitization.
     """
     data = report.model_dump()
-    
-    # Flatten structure for easier template access if desired, 
-    # or just clean up values.
     
     facts = data["facts"]
     narrative = data["narrative"]
     
-    # Sanitize Facts
+    # Sanitize Facts - handle None and escape Jinja2 characters
     for key, value in facts.items():
         if value is None:
             facts[key] = "N/A"
+        elif isinstance(value, str):
+            facts[key] = sanitize_jinja_input(value)
     
     # Ensure lists are not empty for iteration
     if not narrative["key_takeaways"]:
         narrative["key_takeaways"] = ["No specific takeaways recorded."]
-        
-    # We can perform date formatting here if needed
-    # e.g., if facts['date'] is YYYY-MM-DD -> DD Month YYYY
+    else:
+        narrative["key_takeaways"] = [
+            sanitize_jinja_input(t) for t in narrative["key_takeaways"]
+        ]
     
+    # Sanitize executive summary
+    narrative["executive_summary"] = sanitize_jinja_input(
+        narrative["executive_summary"]
+    )
+        
     return {
         "facts": facts,
         "narrative": narrative,
-        "executive_summary": narrative["executive_summary"], # Shortcut
-        "key_takeaways": narrative["key_takeaways"]          # Shortcut
+        "executive_summary": narrative["executive_summary"],
+        "key_takeaways": narrative["key_takeaways"]
     }
+
 
 def render_report(report: FullReport, template_path: str = "master_template.docx") -> BytesIO:
     """

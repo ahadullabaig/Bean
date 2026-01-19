@@ -7,3 +7,5 @@ master_template.docx
 .pytest_cache/
 venv/
 .streamlit/
+audit/
+*.log
