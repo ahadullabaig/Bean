@@ -14,6 +14,8 @@ def extract_facts(text: str) -> EventFacts:
     1. Extract strictly from the text. Do not infer or guess.
     2. If a field is missing, leave it as null (None).
     3. Return the result in the specified JSON structure.
+    4. Pay close attention to lists (Coordinators, Judges, Winners).
+    5. For Winners, extract team name, members, and prize if available.
     
     Raw Text:
     {text}

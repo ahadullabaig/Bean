@@ -37,6 +37,11 @@ def sanitize_view_model(report: FullReport) -> dict:
             facts[key] = sanitize_jinja_input(value)
     
     # Ensure lists are not empty for iteration
+    list_fields = ["student_coordinators", "faculty_coordinators", "judges", "winners"]
+    for field in list_fields:
+        if field in facts and not facts[field]:
+             facts[field] = []
+
     if not narrative["key_takeaways"]:
         narrative["key_takeaways"] = ["No specific takeaways recorded."]
     else:

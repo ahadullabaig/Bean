@@ -2,7 +2,7 @@ __pycache__/
 *.pyc
 .env
 .DS_Store
-master_template.docx
+
 *_report.docx
 .pytest_cache/
 venv/

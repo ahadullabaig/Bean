@@ -1,5 +1,5 @@
 import streamlit as st
-from models.schemas import EventFacts
+from models.schemas import EventFacts, Winner
 
 def render_smart_form(facts: EventFacts) -> EventFacts:
     """
@@ -34,6 +34,39 @@ def render_smart_form(facts: EventFacts) -> EventFacts:
                     value=current_value if current_value is not None else 0,
                     min_value=0
                 )
+            elif field_name == "volunteer_count":
+                updated_data[field_name] = st.number_input(
+                    label, 
+                    value=current_value if current_value is not None else 0,
+                    min_value=0
+                )
+            elif field_name == "mode":
+                 updated_data[field_name] = st.selectbox(
+                    label,
+                    ["Offline", "Online", "Hybrid"],
+                    index=["Offline", "Online", "Hybrid"].index(current_value) if current_value in ["Offline", "Online", "Hybrid"] else 0
+                )
+            elif field_name in ["student_coordinators", "faculty_coordinators", "judges", "key_takeaways"]:
+                 # Handle lists as comma separated strings
+                 val_str = ", ".join(current_value) if current_value else ""
+                 new_val_str = st.text_area(f"{label} (Comma separated)", value=val_str)
+                 updated_data[field_name] = [x.strip() for x in new_val_str.split(",") if x.strip()]
+            
+            elif field_name == "winners":
+                st.markdown(f"**{label}**")
+                # Simplified winner editing - just text for common cases or expand if needed
+                # For v1, let's allow adding via a simple expander or just rely on AI extraction
+                # Real implementation: Iterate over winners found
+                if not current_value:
+                    st.info("No winners extracted. Add via input notes if needed.")
+                else:
+                    for i, w in enumerate(current_value):
+                        st.text(f"Winner {i+1}: {w.place} - {w.team_name} ({w.prize_money})")
+                
+                # We won't build a full CRUD for winners here yet to keep it simple
+                # passing existing value back
+                updated_data[field_name] = current_value
+
             else:
                 updated_data[field_name] = st.text_input(
                     label, 
