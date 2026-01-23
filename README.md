@@ -13,33 +13,33 @@
 
 ---
 
-## 📖 About
+## About
 **Bean** is an agentic AI workflow designed to automate the tedious documentation process for student branches and technical chapters. Instead of manually compiling event reports, you simply feed Bean your raw, unstructured notes (or voice memos), and it uses a strict **Auditor-Ghostwriter-Critic** pipeline to generate a pristine, professionally formatted report.
 
 It doesn't just "summarize"—it **extracts facts**, **drafts narratives**, and **self-corrects** to ensure zero hallucinations.
 
-## 🚀 Key Features
+## Key Features
 
-### 🕵️ The Auditor (Fact Extraction)
+### The Auditor (Fact Extraction)
 - Runs at `Temperature 0.0`.
 - Acts as a strict data entry clerk.
 - Extracts dates, numbers, names, and lists into a rigid `Pydantic` schema.
 - **Goal**: Absolute Truth.
 
-### ✍️ The Ghostwriter (Creative Draft)
+### The Ghostwriter (Creative Draft)
 - Runs at `Temperature 0.3`.
 - Takes the Auditor's facts and weaves them into a professional Executive Summary and Key Takeaways.
 - Matches the tone of an IEEE technical report.
 - **Goal**: Professional Polish.
 
-### ⚖️ The Critic (Compliance Check)
+### The Critic (Compliance Check)
 - Compares the final Generated Report against your Original Notes.
 - Flags any "hallucinated" facts that weren't in your source text.
 - **Goal**: Trust & Safety.
 
 ---
 
-## 🏗️ Architecture
+## Architecture
 
 The strength of Bean lies in its multi-agent chain. It is not a single prompt, but a pipeline of specialized roles.
 
@@ -66,7 +66,7 @@ flowchart LR
 
 ---
 
-## 🛠️ Tech Stack
+## Tech Stack
 
 | Component | Technology | Description |
 | :--- | :--- | :--- |
@@ -77,7 +77,7 @@ flowchart LR
 
 ---
 
-## ⚡ Getting Started
+## Getting Started
 
 ### Prerequisites
 - Python 3.10 or higher.
