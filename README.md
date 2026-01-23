@@ -1,101 +1,128 @@
-# 🫘 Bean: The AI Event Reporter
+<div align="center">
 
-**Turn messy notes into professional IEEE event reports in seconds.**
+# 🫘 Bean
+### The Event Reporter
 
-Bean is an AI-powered documentation agent designed for the IEEE Student Branch. It takes rough, unstructured input (text or audio notes) and "ghostwrites" a structured, production-ready `.docx` report. It prioritizes **accuracy** over creativity for facts, but **professionalism** for narrative.
+**"Turn messy notes into professional IEEE reports in seconds."**
 
-## ✨ Key Features
+![Python](https://img.shields.io/badge/Python-3.10%2B-yellow.svg)
+![Streamlit](https://img.shields.io/badge/Built%20With-Streamlit-red.svg)
+![AI](https://img.shields.io/badge/Powered%20By-Google%20GenAI-green.svg)
 
--   **🕵️ The Auditor (Fact Extraction)**: Uses a strict, low-temperature LLM (Gemini 2.0 Flash) to act as a data entry clerk. It extracts strict facts (Date, Venue, Attendance) and refuses to guess missing info.
--   **👻 The Ghostwriter (Narrative Synthesis)**: A creative AI layer that turns bullet points into professional executive summaries and key takeaways, adhering to academic tone.
--   **📝 Smart Forms**: If the Auditor misses a fact (e.g., you forgot to mention the date), Bean dynamically generates a UI form asking *only* for what's missing.
--   **⚖️ The Critic (Hallucination Check)**: A final safety net that compares the generated report against your original notes. If the AI "invented" a fact (like a fake specific number), the Critic flags it instantly.
--   **📄 Production DOCX**: Generates a perfectly formatted Word document (`master_template.docx`) ready for submission.
+</div>
+
+---
+
+## 📖 About
+**Bean** is an agentic AI workflow designed to automate the tedious documentation process for student branches and technical chapters. Instead of manually compiling event reports, you simply feed Bean your raw, unstructured notes (or voice memos), and it uses a strict **Auditor-Ghostwriter-Critic** pipeline to generate a pristine, professionally formatted report.
+
+It doesn't just "summarize"—it **extracts facts**, **drafts narratives**, and **self-corrects** to ensure zero hallucinations.
+
+## 🚀 Key Features
+
+### 🕵️ The Auditor (Fact Extraction)
+- Runs at `Temperature 0.0`.
+- Acts as a strict data entry clerk.
+- Extracts dates, numbers, names, and lists into a rigid `Pydantic` schema.
+- **Goal**: Absolute Truth.
+
+### ✍️ The Ghostwriter (Creative Draft)
+- Runs at `Temperature 0.3`.
+- Takes the Auditor's facts and weaves them into a professional Executive Summary and Key Takeaways.
+- Matches the tone of an IEEE technical report.
+- **Goal**: Professional Polish.
+
+### ⚖️ The Critic (Compliance Check)
+- Compares the final Generated Report against your Original Notes.
+- Flags any "hallucinated" facts that weren't in your source text.
+- **Goal**: Trust & Safety.
+
+---
 
 ## 🏗️ Architecture
 
-Bean uses a **Dual-Schema Architecture** to separate truth from style:
+The strength of Bean lies in its multi-agent chain. It is not a single prompt, but a pipeline of specialized roles.
 
-1.  **Fact Layer (`EventFacts`)**: Strict Pydantic model. If it's not in the text, it's `null`.
-2.  **Narrative Layer (`EventNarrative`)**: Professional prose derived *only* from the Facts.
+```mermaid
+flowchart LR
+    User[User Input] -->|Raw Notes / Audio| Auditor
+    
+    subgraph Core Engine
+        direction TB
+        Auditor[Auditor] -->|Structured Facts| Verifier
+        Verifier{Human Verify} -->|Approved| Ghostwriter
+        Ghostwriter[Ghostwriter] -->|Narrative Draft| Assembler
+        Assembler[Report Assembler] -->|Full Report| Critic
+        Critic[Critic] --Checks vs Source--> Assembler
+    end
+    
+    Assembler -->|Final DOCX| Download
+    Critic -.->|Warnings| User
+    
+    style Auditor fill:#ff9999,stroke:#333,stroke-width:2px
+    style Ghostwriter fill:#99ccff,stroke:#333,stroke-width:2px
+    style Critic fill:#99ff99,stroke:#333,stroke-width:2px
+```
 
-**The Pipeline:**
-`Input` -> `Auditor` -> `Smart Form (Human Loop)` -> `Ghostwriter` -> `Critic` -> `DOCX Renderer`
+---
 
-## 🚀 Getting Started
+## 🛠️ Tech Stack
+
+| Component | Technology | Description |
+| :--- | :--- | :--- |
+| **Frontend** | `Streamlit` | Fast, reactive UI for the agent interface. |
+| **LLM Orchestration** | `Google GenAI SDK` | Interface for Gemini 2.5 Flash. |
+| **Data Validation** | `Pydantic` | Strict schema definition and type checking. |
+| **Document Gen** | `python-docx` | Programmatic creation of Word documents. |
+
+---
+
+## ⚡ Getting Started
 
 ### Prerequisites
-
--   Python 3.10+
--   A Google Gemini API Key
+- Python 3.10 or higher.
+- A **Google Gemini API Key** (Get one [here](https://aistudio.google.com/)).
 
 ### Installation
 
-1.  **Clone the repository**:
-    ```bash
-    git clone https://github.com/your-repo/bean.git
-    cd bean
-    ```
+1. **Clone the repository**
+   ```bash
+   git clone https://github.com/ahadullabaig/bean.git
+   cd bean
+   ```
 
-2.  **Install dependencies**:
-    ```bash
-    pip install -r requirements.txt
-    ```
+2. **Install dependencies**
+   ```bash
+   pip install -r requirements.txt
+   ```
 
-3.  **Set up Environment**:
-    Create a `.env` file in the root directory:
-    ```env
-    GEMINI_API_KEY=AIzaSy...your_api_key...
-    ```
+3. **Run the Application**
+   ```bash
+   streamlit run app.py
+   ```
 
-4.  **Create the Template**:
-    Run the script to generate the base Word template:
-    ```bash
-    python3 scripts/create_template.py
-    ```
-
-### Usage
-
-Run the Streamlit application:
-
-```bash
-streamlit run app.py
-```
-
-1.  **Feed the Bean**: Paste your rough notes or use the audio input.
-2.  **Verify**: The Auditor will show you what it found. Fill in any blanks.
-3.  **Download**: Get your `.docx` report.
-
-## 📂 Project Structure
-
-```
-bean/
-├── app.py                 # Main Streamlit Application
-├── core/                  # Intelligence Engine
-│   ├── auditor.py         # Fact Extraction Logic
-│   ├── ghostwriter.py     # Narrative Generation Logic
-│   ├── critic.py          # Hallucination Checker
-│   ├── llm.py             # Gemini Wrapper & Schema Cleaner
-│   └── renderer.py        # DOCX Generation Logic
-├── models/
-│   └── schemas.py         # Pydantic Data Models
-├── ui/
-│   ├── components.py      # UI Widgets (Smart Form)
-│   └── handlers.py        # Input Processors
-└── utils/
-    └── constants.json     # Static Knowledge (Venues, Names)
-```
-
-## 🔧 Troubleshooting
-
-**Error: `ValueError: Unknown field for Schema: default`**
-This is a known issue with the `google-generativeai` SDK handling Pydantic `default` values. We have patched this in `core/llm.py` with a custom `get_clean_schema` function. If you encounter this, ensure you are using the latest code from this repo.
-
-## 🤝 Contributing
-
-1.  Fork the repo.
-2.  Create a feature branch.
-3.  Submit a Pull Request.
+### Usage Flow
+1. **Input Phase**: Paste your raw notes or record audio.
+2. **Verification Phase**: Review the "Smart Form" pre-filled by the **Auditor**. Edit any wrong numbers.
+3. **Generation Phase**: Watch the **Ghostwriter** and **Critic** work.
+4. **Download**: Export your final `.docx` report.
 
 ---
-*Built with ❤️ for the IEEE Student Branch.*
+
+## 📂 Directory Structure
+
+```graphql
+bean/
+├── app.py                # Main Application Entry Point
+├── core/                 # The Brains
+│   ├── auditor.py        # Fact Extraction Logic
+│   ├── ghostwriter.py    # Narrative Generation Logic
+│   ├── critic.py         # Hallucination Checker
+│   └── llm.py            # Gemini Client Wrapper
+├── models/               # Data Structures
+│   └── schemas.py        # Pydantic Models for Events
+├── ui/                   # Frontend Components
+│   ├── components.py     # Reusable UI Widgets
+│   └── handlers.py       # Input Processors
+└── assets/               # Static Images
+```
