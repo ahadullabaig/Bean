@@ -2,6 +2,7 @@ streamlit
 pydantic
 google-genai
 python-dotenv
+tenacity
 pytest
 pytest-cov
 docxtpl

@@ -88,10 +88,13 @@ elif st.session_state["stage"] == "verify":
             from core.critic import check_consistency
             # Reconstruct text for critic
             report_text = f"{report.facts}\n\n{report.narrative.executive_summary}\n\n{report.narrative.key_takeaways}"
-            warnings = check_consistency(st.session_state["raw_text_context"], report_text)
+            verdict = check_consistency(st.session_state["raw_text_context"], report_text)
+            
+            # Update confidence score from critic
+            report.confidence_score = verdict.confidence
             
             st.session_state["final_report"] = report
-            st.session_state["warnings"] = warnings
+            st.session_state["critic_verdict"] = verdict
             st.session_state["stage"] = "report"
             st.rerun()
 
@@ -99,13 +102,27 @@ elif st.session_state["stage"] == "verify":
 elif st.session_state["stage"] == "report":
     st.header("Step 3: Your Report")
     
-    warnings = st.session_state.get("warnings", [])
-    if warnings:
-        st.error("⚠️ The Critic found potential inconsistencies:")
-        for w in warnings:
-            st.write(f"- {w}")
-    else:
-        st.success("✅ The Critic approved this report (Zero Hallucinations detected).")
+    # Display Critic verdict with confidence
+    verdict = st.session_state.get("critic_verdict")
+    if verdict:
+        # Confidence badge
+        conf_color = "green" if verdict.confidence > 0.8 else "orange" if verdict.confidence > 0.5 else "red"
+        st.markdown(f"""
+        <div style='margin-bottom: 1rem;'>
+            <span style='background:{conf_color}; color:white; padding:4px 12px; border-radius:4px; font-weight:bold;'>
+                Confidence: {verdict.confidence:.0%}
+            </span>
+        </div>
+        """, unsafe_allow_html=True)
+        
+        if not verdict.is_safe:
+            st.error("⚠️ The Critic found potential inconsistencies:")
+            for issue in verdict.issues:
+                st.write(f"- {issue}")
+            with st.expander("Critic's Reasoning"):
+                st.write(verdict.reasoning)
+        else:
+            st.success("✅ The Critic approved this report (Zero Hallucinations detected).")
     
     report: FullReport = st.session_state["final_report"]
     

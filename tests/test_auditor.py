@@ -1,6 +1,6 @@
 """
 Unit tests for the Auditor (Fact Extraction) module.
-Tests cover: valid extraction, empty input, and malformed responses.
+Tests cover: valid extraction, empty input, self-correction, and error handling.
 """
 import pytest
 from unittest.mock import patch, Mock, MagicMock
@@ -83,31 +83,61 @@ class TestAuditorExtraction:
             
             assert len(result.student_coordinators) == 2
             assert len(result.judges) == 3
+
+
+class TestAuditorSelfCorrection:
+    """Tests for the self-correction loop."""
     
-    def test_extract_facts_handles_none_parsed_response(self, sample_raw_text):
-        """
-        Test behavior when response.parsed is None.
-        NOTE: This test documents current behavior. 
-        In Phase 2, we'll add a validation fallback.
-        """
+    def test_self_correction_on_none_parsed(self, sample_raw_text, sample_event_facts):
+        """Test that manual parsing is attempted when response.parsed is None."""
         with patch('core.auditor.get_gemini_client') as mock_get_client:
             mock_response = Mock()
-            mock_response.parsed = None  # Simulates malformed JSON
+            mock_response.parsed = None
+            mock_response.text = sample_event_facts.model_dump_json()
+            
+            mock_client = MagicMock()
+            mock_client.models.generate_content.return_value = mock_response
+            mock_get_client.return_value = mock_client
+            
+            result = extract_facts(sample_raw_text)
+            
+            # Should successfully parse via fallback
+            assert isinstance(result, EventFacts)
+            assert result.event_title == sample_event_facts.event_title
+    
+    def test_raises_after_max_retries(self, sample_raw_text):
+        """Test that ValueError is raised after max retries with bad JSON."""
+        with patch('core.auditor.get_gemini_client') as mock_get_client:
+            mock_response = Mock()
+            mock_response.parsed = None
             mock_response.text = "invalid json {"
             
             mock_client = MagicMock()
             mock_client.models.generate_content.return_value = mock_response
             mock_get_client.return_value = mock_client
             
-            # Currently this will return None - Phase 2 will fix this
-            result = extract_facts(sample_raw_text)
-            
-            # Document current (broken) behavior
-            assert result is None
+            with pytest.raises(ValueError, match="Failed to extract facts"):
+                extract_facts(sample_raw_text, max_retries=1)
 
 
 class TestAuditorPrompt:
-    """Tests for prompt construction."""
+    """Tests for prompt construction and security."""
+    
+    def test_prompt_uses_xml_delimiters(self, sample_raw_text, mock_auditor_response):
+        """Verify the prompt uses XML delimiters for injection protection."""
+        with patch('core.auditor.get_gemini_client') as mock_get_client:
+            mock_client = MagicMock()
+            mock_client.models.generate_content.return_value = mock_auditor_response
+            mock_get_client.return_value = mock_client
+            
+            extract_facts(sample_raw_text)
+            
+            call_args = mock_client.models.generate_content.call_args
+            prompt = call_args.kwargs.get('contents', '')
+            
+            # Check for XML delimiters
+            assert "<USER_INPUT>" in prompt
+            assert "</USER_INPUT>" in prompt
     
     def test_prompt_contains_raw_text(self, sample_raw_text, mock_auditor_response):
         """Verify the user's raw text is included in the prompt."""
