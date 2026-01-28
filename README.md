@@ -29,9 +29,6 @@
 | Reports lack consistency | Template library ensures uniform structure |
 | No way to verify AI accuracy | Built-in Critic with confidence scoring |
 
-### 🔄 Workflow
-![Bean Workflow](assets/workflow.png)
-
 ---
 
 ## 🚀 Key Features
