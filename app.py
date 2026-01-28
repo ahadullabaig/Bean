@@ -1,34 +1,58 @@
+"""
+Bean: AI Documentation Agent - Main Application
+
+A Streamlit app that transforms messy event notes into professional IEEE reports
+using a pipeline of specialized AI agents: Auditor → Ghostwriter → Critic.
+"""
 import streamlit as st
-import json
+import hashlib
 import os
+
+# Clean imports at top level
+from core.critic import check_consistency
+from core.ghostwriter import generate_narrative
+from core.renderer import render_report
 from ui.handlers import handle_text_process, handle_audio_process
 from ui.components import render_smart_form
-from core.ghostwriter import generate_narrative
 from models.schemas import EventFacts, FullReport
+
 
 # Page Config
 st.set_page_config(page_title="Bean: AI Documentation Agent", page_icon="🫘")
 
-# Session State Initialization
-if "stage" not in st.session_state:
-    st.session_state["stage"] = "input" # input -> verify -> report
-if "facts" not in st.session_state:
-    st.session_state["facts"] = None
-if "raw_text_context" not in st.session_state:
-    st.session_state["raw_text_context"] = ""
-if "final_report" not in st.session_state:
-    st.session_state["final_report"] = None
 
-# Sidebar
+# --- SESSION STATE INITIALIZATION ---
+def init_session_state():
+    """Initialize all session state variables with defaults."""
+    defaults = {
+        "stage": "input",  # input -> verify -> report
+        "facts": None,
+        "raw_text_context": "",
+        "final_report": None,
+        "critic_verdict": None,
+        "processing": False,  # Double-click protection flag
+    }
+    for key, value in defaults.items():
+        if key not in st.session_state:
+            st.session_state[key] = value
+
+init_session_state()
+
+
+# --- SIDEBAR ---
 with st.sidebar:
-    st.image("assets/ieee_header.png", use_column_width=True) if os.path.exists("assets/ieee_header.png") else None
+    if os.path.exists("assets/ieee_header.png"):
+        st.image("assets/ieee_header.png", use_column_width=True)
     st.title("Settings")
     api_key = st.text_input("Gemini API Key", type="password")
     if api_key:
         os.environ["GEMINI_API_KEY"] = api_key
 
+
+# --- MAIN UI ---
 st.title("🫘 Bean: The Event Reporter")
 st.markdown("Turn your messy notes into professional IEEE reports.")
+
 
 # --- STAGE 1: INPUT ---
 if st.session_state["stage"] == "input":
@@ -38,33 +62,41 @@ if st.session_state["stage"] == "input":
     
     if input_method == "Text Notes":
         raw_text = st.text_area("Paste your event notes here...", height=200)
-        if st.button("Process Notes"):
+        
+        # Double-click protected button
+        process_btn = st.button(
+            "Process Notes", 
+            disabled=st.session_state.get("processing", False)
+        )
+        
+        if process_btn and not st.session_state.get("processing"):
             if not raw_text.strip():
                 st.error("Please enter some text.")
             else:
-                st.session_state["raw_text_context"] = raw_text
-                st.session_state["facts"] = handle_text_process(raw_text)
-                st.session_state["stage"] = "verify"
+                # Set processing flag to prevent double-clicks
+                st.session_state["processing"] = True
+                
+                try:
+                    st.session_state["raw_text_context"] = raw_text
+                    st.session_state["facts"] = handle_text_process(raw_text)
+                    st.session_state["stage"] = "verify"
+                finally:
+                    st.session_state["processing"] = False
+                    
                 st.rerun()
 
     elif input_method == "Audio Recording":
         audio_val = st.audio_input("Record your notes")
         if audio_val:
             st.info("Audio received. Processing...")
-            # Placeholder for audio logic
-            # facts = handle_audio_process(audio_val)
-            # if facts:
-            #     st.session_state["facts"] = facts
-            #     st.session_state["stage"] = "verify"
-            #     st.rerun()
             st.warning("Audio processing is under construction. Please use text.")
+
 
 # --- STAGE 2: VERIFICATION (Smart Form) ---
 elif st.session_state["stage"] == "verify":
     st.header("Step 2: The Auditor's Check")
     
     # Render the Smart Form
-    # The component returns the updated facts object upon submission
     updated_facts = render_smart_form(st.session_state["facts"])
     
     if updated_facts:
@@ -85,10 +117,9 @@ elif st.session_state["stage"] == "verify":
             )
             
             # --- CRITIC PASS ---
-            from core.critic import check_consistency
-            # Reconstruct text for critic
-            report_text = f"{report.facts}\n\n{report.narrative.executive_summary}\n\n{report.narrative.key_takeaways}"
-            verdict = check_consistency(st.session_state["raw_text_context"], report_text)
+            with st.spinner("The Critic is verifying the report..."):
+                report_text = f"{report.facts}\n\n{report.narrative.executive_summary}\n\n{report.narrative.key_takeaways}"
+                verdict = check_consistency(st.session_state["raw_text_context"], report_text)
             
             # Update confidence score from critic
             report.confidence_score = verdict.confidence
@@ -98,6 +129,7 @@ elif st.session_state["stage"] == "verify":
             st.session_state["stage"] = "report"
             st.rerun()
 
+
 # --- STAGE 3: REPORT PREVIEW ---
 elif st.session_state["stage"] == "report":
     st.header("Step 3: Your Report")
@@ -105,7 +137,7 @@ elif st.session_state["stage"] == "report":
     # Display Critic verdict with confidence
     verdict = st.session_state.get("critic_verdict")
     if verdict:
-        # Confidence badge
+        # Confidence badge with color coding
         conf_color = "green" if verdict.confidence > 0.8 else "orange" if verdict.confidence > 0.5 else "red"
         st.markdown(f"""
         <div style='margin-bottom: 1rem;'>
@@ -141,19 +173,30 @@ elif st.session_state["stage"] == "report":
     
     st.divider()
     
-    # Generate and Download
-    if st.button("Generate .docx"):
-        from core.renderer import render_report
-        file_stream = render_report(report)
-        st.download_button(
-            label="Download DOCX",
-            data=file_stream,
-            file_name=f"{report.facts.event_title or 'event'}_report.docx",
-            mime="application/vnd.openxmlformats-officedocument.wordprocessingml.document"
-        )
+    # Generate and Download - two-step to avoid nested buttons
+    col1, col2 = st.columns(2)
     
-    if st.button("Start Over"):
-        st.session_state["stage"] = "input"
-        st.session_state["facts"] = None
-        st.session_state["final_report"] = None
-        st.rerun()
+    with col1:
+        if st.button("Generate .docx"):
+            file_stream = render_report(report)
+            st.session_state["docx_stream"] = file_stream
+    
+    # Show download button if stream is ready
+    if st.session_state.get("docx_stream"):
+        with col1:
+            st.download_button(
+                label="📥 Download DOCX",
+                data=st.session_state["docx_stream"],
+                file_name=f"{report.facts.event_title or 'event'}_report.docx",
+                mime="application/vnd.openxmlformats-officedocument.wordprocessingml.document"
+            )
+    
+    with col2:
+        if st.button("🔄 Start Over"):
+            # Clear all session state
+            for key in ["stage", "facts", "final_report", "critic_verdict", "docx_stream"]:
+                if key == "stage":
+                    st.session_state[key] = "input"
+                else:
+                    st.session_state[key] = None
+            st.rerun()
