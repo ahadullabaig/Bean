@@ -5,7 +5,6 @@ A Streamlit app that transforms messy event notes into professional IEEE reports
 using a pipeline of specialized AI agents: Auditor → Ghostwriter → Critic.
 """
 import streamlit as st
-import hashlib
 import os
 
 # Clean imports at top level
@@ -13,12 +12,21 @@ from core.critic import check_consistency
 from core.ghostwriter import generate_narrative
 from core.renderer import render_report
 from ui.handlers import handle_text_process, handle_audio_process
-from ui.components import render_smart_form
+from ui.components import (
+    render_smart_form, 
+    render_progress_stepper, 
+    render_confidence_badge,
+    agent_spinner
+)
 from models.schemas import EventFacts, FullReport
 
 
 # Page Config
-st.set_page_config(page_title="Bean: AI Documentation Agent", page_icon="🫘")
+st.set_page_config(
+    page_title="Bean: AI Documentation Agent", 
+    page_icon="🫘",
+    layout="centered"
+)
 
 
 # --- SESSION STATE INITIALIZATION ---
@@ -30,7 +38,8 @@ def init_session_state():
         "raw_text_context": "",
         "final_report": None,
         "critic_verdict": None,
-        "processing": False,  # Double-click protection flag
+        "processing": False,
+        "docx_stream": None,
     }
     for key, value in defaults.items():
         if key not in st.session_state:
@@ -42,43 +51,59 @@ init_session_state()
 # --- SIDEBAR ---
 with st.sidebar:
     if os.path.exists("assets/ieee_header.png"):
-        st.image("assets/ieee_header.png", use_column_width=True)
-    st.title("Settings")
+        st.image("assets/ieee_header.png", use_container_width=True)
+    st.title("⚙️ Settings")
     api_key = st.text_input("Gemini API Key", type="password")
     if api_key:
         os.environ["GEMINI_API_KEY"] = api_key
+    
+    st.divider()
+    st.caption("🫘 Bean v1.0")
+    st.caption("Powered by Google Gemini")
 
 
 # --- MAIN UI ---
 st.title("🫘 Bean: The Event Reporter")
-st.markdown("Turn your messy notes into professional IEEE reports.")
+st.markdown("*Turn your messy notes into professional IEEE reports.*")
+
+# Progress Stepper
+render_progress_stepper(st.session_state["stage"])
 
 
 # --- STAGE 1: INPUT ---
 if st.session_state["stage"] == "input":
-    st.header("Step 1: Feed the Bean")
+    st.header("📝 Feed the Bean")
     
-    input_method = st.radio("Input Method", ["Text Notes", "Audio Recording"])
+    input_method = st.radio(
+        "Choose your input method:", 
+        ["Text Notes", "Audio Recording"],
+        horizontal=True
+    )
     
     if input_method == "Text Notes":
-        raw_text = st.text_area("Paste your event notes here...", height=200)
+        raw_text = st.text_area(
+            "Paste your event notes here...", 
+            height=250,
+            placeholder="Example: We conducted a workshop on Machine Learning on 15th January 2024. Around 45 students attended. Dr. Priya Sharma was the speaker..."
+        )
         
         # Double-click protected button
         process_btn = st.button(
-            "Process Notes", 
-            disabled=st.session_state.get("processing", False)
+            "🚀 Process Notes", 
+            disabled=st.session_state.get("processing", False),
+            use_container_width=True
         )
         
         if process_btn and not st.session_state.get("processing"):
             if not raw_text.strip():
                 st.error("Please enter some text.")
             else:
-                # Set processing flag to prevent double-clicks
                 st.session_state["processing"] = True
                 
                 try:
                     st.session_state["raw_text_context"] = raw_text
-                    st.session_state["facts"] = handle_text_process(raw_text)
+                    with agent_spinner("Auditor", "Extracting facts from your notes..."):
+                        st.session_state["facts"] = handle_text_process(raw_text)
                     st.session_state["stage"] = "verify"
                 finally:
                     st.session_state["processing"] = False
@@ -88,13 +113,13 @@ if st.session_state["stage"] == "input":
     elif input_method == "Audio Recording":
         audio_val = st.audio_input("Record your notes")
         if audio_val:
-            st.info("Audio received. Processing...")
-            st.warning("Audio processing is under construction. Please use text.")
+            st.info("Audio received.")
+            st.warning("🚧 Audio processing is under construction. Please use text for now.")
 
 
 # --- STAGE 2: VERIFICATION (Smart Form) ---
 elif st.session_state["stage"] == "verify":
-    st.header("Step 2: The Auditor's Check")
+    st.header("🔍 Verify the Facts")
     
     # Render the Smart Form
     updated_facts = render_smart_form(st.session_state["facts"])
@@ -103,64 +128,73 @@ elif st.session_state["stage"] == "verify":
         st.session_state["facts"] = updated_facts
         
         # Trigger Ghostwriter
-        with st.spinner("The Ghostwriter is drafting the narrative..."):
+        with agent_spinner("Ghostwriter", "Drafting the narrative..."):
             narrative = generate_narrative(
                 st.session_state["facts"], 
                 st.session_state["raw_text_context"]
             )
-            
-            # Combine into Full Report
-            report = FullReport(
-                facts=st.session_state["facts"],
-                narrative=narrative,
-                confidence_score=1.0
-            )
-            
-            # --- CRITIC PASS ---
-            with st.spinner("The Critic is verifying the report..."):
-                report_text = f"{report.facts}\n\n{report.narrative.executive_summary}\n\n{report.narrative.key_takeaways}"
-                verdict = check_consistency(st.session_state["raw_text_context"], report_text)
-            
-            # Update confidence score from critic
-            report.confidence_score = verdict.confidence
-            
-            st.session_state["final_report"] = report
-            st.session_state["critic_verdict"] = verdict
-            st.session_state["stage"] = "report"
-            st.rerun()
+        
+        # Combine into Full Report
+        report = FullReport(
+            facts=st.session_state["facts"],
+            narrative=narrative,
+            confidence_score=1.0
+        )
+        
+        # Critic Pass
+        with agent_spinner("Critic", "Verifying for hallucinations..."):
+            report_text = f"{report.facts}\n\n{report.narrative.executive_summary}\n\n{report.narrative.key_takeaways}"
+            verdict = check_consistency(st.session_state["raw_text_context"], report_text)
+        
+        # Update confidence score from critic
+        report.confidence_score = verdict.confidence
+        
+        st.session_state["final_report"] = report
+        st.session_state["critic_verdict"] = verdict
+        st.session_state["stage"] = "report"
+        st.rerun()
 
 
 # --- STAGE 3: REPORT PREVIEW ---
 elif st.session_state["stage"] == "report":
-    st.header("Step 3: Your Report")
+    st.header("📄 Your Report")
     
-    # Display Critic verdict with confidence
     verdict = st.session_state.get("critic_verdict")
-    if verdict:
-        # Confidence badge with color coding
-        conf_color = "green" if verdict.confidence > 0.8 else "orange" if verdict.confidence > 0.5 else "red"
-        st.markdown(f"""
-        <div style='margin-bottom: 1rem;'>
-            <span style='background:{conf_color}; color:white; padding:4px 12px; border-radius:4px; font-weight:bold;'>
-                Confidence: {verdict.confidence:.0%}
-            </span>
-        </div>
-        """, unsafe_allow_html=True)
-        
-        if not verdict.is_safe:
-            st.error("⚠️ The Critic found potential inconsistencies:")
-            for issue in verdict.issues:
-                st.write(f"- {issue}")
-            with st.expander("Critic's Reasoning"):
-                st.write(verdict.reasoning)
-        else:
-            st.success("✅ The Critic approved this report (Zero Hallucinations detected).")
-    
     report: FullReport = st.session_state["final_report"]
     
+    # Critic Verdict Section
+    if verdict:
+        col1, col2 = st.columns([1, 3])
+        with col1:
+            render_confidence_badge(verdict.confidence)
+        with col2:
+            if verdict.is_safe:
+                st.success("✅ Zero Hallucinations detected")
+            else:
+                st.warning(f"⚠️ {len(verdict.issues)} potential issue(s) found")
+        
+        if not verdict.is_safe:
+            with st.expander("🔎 View Critic's Analysis", expanded=True):
+                st.markdown("**Issues Found:**")
+                for issue in verdict.issues:
+                    st.markdown(f"- {issue}")
+                st.divider()
+                st.markdown("**Reasoning:**")
+                st.write(verdict.reasoning)
+    
+    st.divider()
+    
+    # Report Content
     st.subheader(report.facts.event_title or "Untitled Event")
-    st.markdown(f"**Date:** {report.facts.date} | **Venue:** {report.facts.venue}")
-    st.markdown(f"**Attendance:** {report.facts.attendance_count}")
+    
+    # Metadata row
+    meta_cols = st.columns(3)
+    with meta_cols[0]:
+        st.metric("📅 Date", report.facts.date or "N/A")
+    with meta_cols[1]:
+        st.metric("📍 Venue", report.facts.venue or "N/A")
+    with meta_cols[2]:
+        st.metric("👥 Attendance", report.facts.attendance_count or "N/A")
     
     st.divider()
     
@@ -169,34 +203,34 @@ elif st.session_state["stage"] == "report":
     
     st.subheader("Key Takeaways")
     for item in report.narrative.key_takeaways:
-        st.markdown(f"- {item}")
+        st.markdown(f"✦ {item}")
     
     st.divider()
     
-    # Generate and Download - two-step to avoid nested buttons
+    # Action Buttons
     col1, col2 = st.columns(2)
     
     with col1:
-        if st.button("Generate .docx"):
-            file_stream = render_report(report)
-            st.session_state["docx_stream"] = file_stream
-    
-    # Show download button if stream is ready
-    if st.session_state.get("docx_stream"):
-        with col1:
-            st.download_button(
-                label="📥 Download DOCX",
-                data=st.session_state["docx_stream"],
-                file_name=f"{report.facts.event_title or 'event'}_report.docx",
-                mime="application/vnd.openxmlformats-officedocument.wordprocessingml.document"
-            )
+        if st.button("📄 Generate DOCX", use_container_width=True):
+            with st.spinner("Generating document..."):
+                file_stream = render_report(report)
+                st.session_state["docx_stream"] = file_stream
     
     with col2:
-        if st.button("🔄 Start Over"):
-            # Clear all session state
+        if st.button("🔄 Start Over", use_container_width=True):
             for key in ["stage", "facts", "final_report", "critic_verdict", "docx_stream"]:
                 if key == "stage":
                     st.session_state[key] = "input"
                 else:
                     st.session_state[key] = None
             st.rerun()
+    
+    # Download button (shown after generation)
+    if st.session_state.get("docx_stream"):
+        st.download_button(
+            label="📥 Download Report",
+            data=st.session_state["docx_stream"],
+            file_name=f"{report.facts.event_title or 'event'}_report.docx",
+            mime="application/vnd.openxmlformats-officedocument.wordprocessingml.document",
+            use_container_width=True
+        )
