@@ -47,3 +47,21 @@ class FullReport(BaseModel):
     narrative: EventNarrative
     confidence_score: float = Field(..., description="A 0-1 score indicating confidence in data extraction")
 
+
+# Layer 4: Template System (Reusable Event Structures)
+class EventTemplate(BaseModel):
+    """Reusable template for common event types."""
+    id: str = Field(..., description="Unique template identifier (slug)")
+    name: str = Field(..., description="Human-readable template name")
+    description: str = Field("", description="Brief description of when to use this template")
+    category: str = Field("General", description="Category for grouping templates")
+    
+    # Pre-filled defaults for EventFacts
+    default_organizer: str = Field("IEEE RIT Student Branch", description="Default organizer value")
+    default_mode: Optional[str] = Field(None, description="Default mode (Online/Offline/Hybrid)")
+    default_target_audience: Optional[str] = Field(None, description="Default target audience")
+    suggested_agenda: Optional[str] = Field(None, description="Common agenda template")
+    
+    # Metadata
+    created_at: Optional[str] = Field(None, description="ISO timestamp when created")
+    use_count: int = Field(0, description="Number of times this template has been used")

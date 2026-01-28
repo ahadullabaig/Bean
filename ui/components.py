@@ -5,10 +5,128 @@ Includes:
 - Progress stepper for stage visualization
 - Confidence badge with color coding
 - Agent-styled spinners
+- Template selector for event templates
 - Smart form for fact verification
 """
 import streamlit as st
-from models.schemas import EventFacts, Winner
+from typing import Optional, List
+from models.schemas import EventFacts, Winner, EventTemplate
+
+
+# --- TEMPLATE SELECTOR ---
+
+def render_template_selector(templates: List[EventTemplate]) -> Optional[EventTemplate]:
+    """
+    Renders a template selection interface.
+    
+    Args:
+        templates: List of available templates
+        
+    Returns:
+        Selected EventTemplate, or None if using blank template
+    """
+    st.subheader("📋 Choose a Template")
+    st.caption("Start with a template or create from scratch.")
+    
+    # Group templates by category
+    categories = {}
+    for template in templates:
+        if template.category not in categories:
+            categories[template.category] = []
+        categories[template.category].append(template)
+    
+    # Create template options with "None" option
+    options = ["🆕 Start from Scratch"]
+    template_map = {}
+    
+    for category, cat_templates in sorted(categories.items()):
+        for template in cat_templates:
+            option_key = f"{template.name}"
+            options.append(option_key)
+            template_map[option_key] = template
+    
+    # Template selector
+    selected_option = st.selectbox(
+        "Event Type",
+        options,
+        help="Select a template to pre-fill common fields"
+    )
+    
+    # Show template preview if selected
+    if selected_option != "🆕 Start from Scratch":
+        selected_template = template_map.get(selected_option)
+        if selected_template:
+            with st.expander("📌 Template Details", expanded=False):
+                st.markdown(f"**{selected_template.name}**")
+                if selected_template.description:
+                    st.caption(selected_template.description)
+                st.markdown(f"- **Mode:** {selected_template.default_mode or 'Not specified'}")
+                st.markdown(f"- **Audience:** {selected_template.default_target_audience or 'Not specified'}")
+                if selected_template.suggested_agenda:
+                    st.markdown(f"- **Agenda:** {selected_template.suggested_agenda}")
+            return selected_template
+    
+    return None
+
+
+def render_save_template_modal(facts: EventFacts) -> Optional[EventTemplate]:
+    """
+    Renders a modal/expander for saving current facts as a template.
+    
+    Args:
+        facts: The EventFacts to base the template on
+        
+    Returns:
+        New EventTemplate if saved, None otherwise
+    """
+    with st.expander("💾 Save as Template", expanded=False):
+        st.caption("Save this event structure for future use")
+        
+        col1, col2 = st.columns(2)
+        with col1:
+            template_name = st.text_input(
+                "Template Name",
+                placeholder="e.g., Annual Hackathon"
+            )
+        with col2:
+            template_id = st.text_input(
+                "Template ID (slug)",
+                placeholder="e.g., annual-hackathon",
+                help="Lowercase, no spaces"
+            )
+        
+        template_desc = st.text_input(
+            "Description",
+            placeholder="Brief description of this event type"
+        )
+        
+        category = st.selectbox(
+            "Category",
+            ["Technical", "Competition", "Knowledge", "Social", "Custom"]
+        )
+        
+        if st.button("💾 Save Template", key="save_template_btn"):
+            if template_name and template_id:
+                # Create template
+                from core.templates import create_template_from_facts, save_template
+                
+                new_template = create_template_from_facts(
+                    facts=facts,
+                    name=template_name,
+                    template_id=template_id.lower().replace(" ", "-"),
+                    description=template_desc,
+                    category=category
+                )
+                
+                if save_template(new_template):
+                    st.success(f"✅ Template '{template_name}' saved!")
+                    return new_template
+                else:
+                    st.error("Failed to save template")
+            else:
+                st.warning("Please enter both name and ID")
+    
+    return None
 
 
 # --- PROGRESS STEPPER ---

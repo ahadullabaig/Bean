@@ -11,11 +11,14 @@ import os
 from core.critic import check_consistency
 from core.ghostwriter import generate_narrative
 from core.renderer import render_report
+from core.templates import load_templates, get_builtin_templates, apply_template, increment_use_count
 from ui.handlers import handle_text_process, handle_audio_process
 from ui.components import (
     render_smart_form, 
     render_progress_stepper, 
     render_confidence_badge,
+    render_template_selector,
+    render_save_template_modal,
     agent_spinner
 )
 from models.schemas import EventFacts, FullReport
@@ -40,6 +43,7 @@ def init_session_state():
         "critic_verdict": None,
         "processing": False,
         "docx_stream": None,
+        "selected_template": None,
     }
     for key, value in defaults.items():
         if key not in st.session_state:
@@ -74,6 +78,15 @@ render_progress_stepper(st.session_state["stage"])
 if st.session_state["stage"] == "input":
     st.header("📝 Feed the Bean")
     
+    # Template Selection
+    all_templates = get_builtin_templates() + load_templates()
+    selected_template = render_template_selector(all_templates)
+    
+    if selected_template:
+        st.session_state["selected_template"] = selected_template
+    
+    st.divider()
+    
     input_method = st.radio(
         "Choose your input method:", 
         ["Text Notes", "Audio Recording"],
@@ -81,10 +94,15 @@ if st.session_state["stage"] == "input":
     )
     
     if input_method == "Text Notes":
+        # Show different placeholder based on template
+        placeholder_text = "Example: We conducted a workshop on Machine Learning on 15th January 2024. Around 45 students attended. Dr. Priya Sharma was the speaker..."
+        if selected_template:
+            placeholder_text = f"Enter notes for your {selected_template.name}..."
+        
         raw_text = st.text_area(
             "Paste your event notes here...", 
-            height=250,
-            placeholder="Example: We conducted a workshop on Machine Learning on 15th January 2024. Around 45 students attended. Dr. Priya Sharma was the speaker..."
+            height=200,
+            placeholder=placeholder_text
         )
         
         # Double-click protected button
@@ -103,7 +121,25 @@ if st.session_state["stage"] == "input":
                 try:
                     st.session_state["raw_text_context"] = raw_text
                     with agent_spinner("Auditor", "Extracting facts from your notes..."):
-                        st.session_state["facts"] = handle_text_process(raw_text)
+                        extracted_facts = handle_text_process(raw_text)
+                    
+                    # Merge template defaults with extracted facts
+                    if st.session_state.get("selected_template"):
+                        template = st.session_state["selected_template"]
+                        # Apply template defaults only for None values
+                        if not extracted_facts.organizer:
+                            extracted_facts.organizer = template.default_organizer
+                        if not extracted_facts.mode:
+                            extracted_facts.mode = template.default_mode
+                        if not extracted_facts.target_audience:
+                            extracted_facts.target_audience = template.default_target_audience
+                        if not extracted_facts.agenda:
+                            extracted_facts.agenda = template.suggested_agenda
+                        
+                        # Increment template usage
+                        increment_use_count(template.id)
+                    
+                    st.session_state["facts"] = extracted_facts
                     st.session_state["stage"] = "verify"
                 finally:
                     st.session_state["processing"] = False
@@ -120,6 +156,11 @@ if st.session_state["stage"] == "input":
 # --- STAGE 2: VERIFICATION (Smart Form) ---
 elif st.session_state["stage"] == "verify":
     st.header("🔍 Verify the Facts")
+    
+    # Show template in use (if any)
+    if st.session_state.get("selected_template"):
+        template = st.session_state["selected_template"]
+        st.info(f"📋 Using template: **{template.name}**")
     
     # Render the Smart Form
     updated_facts = render_smart_form(st.session_state["facts"])
@@ -207,6 +248,11 @@ elif st.session_state["stage"] == "report":
     
     st.divider()
     
+    # Save as Template Option
+    render_save_template_modal(report.facts)
+    
+    st.divider()
+    
     # Action Buttons
     col1, col2 = st.columns(2)
     
@@ -218,7 +264,7 @@ elif st.session_state["stage"] == "report":
     
     with col2:
         if st.button("🔄 Start Over", use_container_width=True):
-            for key in ["stage", "facts", "final_report", "critic_verdict", "docx_stream"]:
+            for key in ["stage", "facts", "final_report", "critic_verdict", "docx_stream", "selected_template"]:
                 if key == "stage":
                     st.session_state[key] = "input"
                 else:
