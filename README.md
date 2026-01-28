@@ -14,11 +14,11 @@
 
 ---
 
-## ✨ What is Bean?
+## What is Bean?
 
 **Bean** is an agentic AI workflow that automates event documentation for IEEE student branches and technical chapters. It uses a sophisticated **Auditor → Ghostwriter → Critic** pipeline to ensure accurate, hallucination-free reports.
 
-> 💡 **Not just summarization** — Bean extracts facts, drafts professional narratives, and self-corrects using chain-of-thought reasoning.
+> **Not just summarization** — Bean extracts facts, drafts professional narratives, and self-corrects using chain-of-thought reasoning.
 
 ### Why Bean?
 
@@ -31,33 +31,33 @@
 
 ---
 
-## 🚀 Key Features
+## Key Features
 
-### 🕵️ The Auditor (Fact Extraction)
+### The Auditor (Fact Extraction)
 - **Temperature 0.0** — Deterministic, strict extraction
 - Parses dates, names, numbers, and lists into validated Pydantic schemas
 - Self-correction loop for malformed LLM responses
 - Prompt injection protection with XML delimiters
 
-### ✍️ The Ghostwriter (Narrative Generation)
+### The Ghostwriter (Narrative Generation)
 - **Temperature 0.3** — Controlled creativity
 - Transforms facts into professional IEEE-style prose
 - Generates executive summaries and key takeaways
 - Strict adherence to source facts (no invention)
 
-### 🔎 The Critic (Hallucination Checker)
+### The Critic (Hallucination Checker)
 - Compares generated report against original notes
 - Returns structured `CriticVerdict` with **confidence score** (0-100%)
 - Chain-of-thought reasoning for transparency
 - Flags specific unsupported claims
 
-### 📋 Event Template Library
+### Event Template Library
 - **5 built-in templates**: Workshop, Hackathon, Seminar, Webinar, Competition
 - Create custom templates from any report
 - Template defaults auto-fill extracted facts
 - Usage tracking for popular templates
 
-### 🛡️ Production-Ready Reliability
+### Production-Ready Reliability
 - **Exponential backoff retry** on API failures
 - **Double-click protection** prevents duplicate submissions
 - **Response caching** for identical inputs
@@ -65,7 +65,7 @@
 
 ---
 
-## 🏗️ Architecture
+## Architecture
 
 Bean's power comes from its multi-agent pipeline—not a single prompt, but specialized AI roles working in sequence.
 
@@ -73,7 +73,7 @@ Bean's power comes from its multi-agent pipeline—not a single prompt, but spec
 
 ---
 
-## 🛠️ Tech Stack
+## Tech Stack
 
 | Layer | Technology | Purpose |
 |-------|------------|---------|
@@ -86,7 +86,7 @@ Bean's power comes from its multi-agent pipeline—not a single prompt, but spec
 
 ---
 
-## 📦 Installation
+## Installation
 
 ### Prerequisites
 - Python 3.10+
@@ -111,7 +111,7 @@ streamlit run app.py
 
 ---
 
-## 📖 User Guide
+## User Guide
 
 ### Step 1: Choose a Template
 Select from 5 built-in event types or start from scratch.
@@ -131,7 +131,7 @@ Save successful report structures for future use.
 
 ---
 
-## 🧪 Testing
+## Testing
 
 Bean includes a comprehensive test suite covering all core modules.
 
