@@ -1,9 +1,11 @@
 streamlit
 pydantic
 google-genai
+google-api-core
 python-dotenv
 tenacity
 pytest
 pytest-cov
 docxtpl
 python-docx
+
