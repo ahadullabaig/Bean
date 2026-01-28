@@ -3,5 +3,6 @@ pydantic
 google-genai
 python-dotenv
 pytest
+pytest-cov
 docxtpl
 python-docx
