@@ -9,6 +9,3 @@ venv/
 .streamlit/
 audit/
 *.log
-
-master_plan.md
-
