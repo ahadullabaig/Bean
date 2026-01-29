@@ -193,17 +193,35 @@ elif st.session_state["stage"] == "verify":
                 confidence_score=1.0
             )
             
-            # Critic Pass - include verified facts as source of truth
-            # This prevents flagging user-edited fields as hallucinations
+            # Critic Pass - only check AI-generated narrative, not user-verified facts
+            # The narrative is what the AI created; facts are already human-verified
             with agent_spinner("Critic", "Verifying for hallucinations..."):
-                report_text = f"{report.facts}\n\n{report.narrative.executive_summary}\n\n{report.narrative.key_takeaways}"
-                # Combine original notes + user-verified facts as the complete source
-                verified_facts_json = st.session_state["facts"].model_dump_json(exclude_none=True, indent=2)
-                complete_source = f"""{st.session_state["raw_text_context"]}
+                # Only check executive summary and key takeaways (AI-generated)
+                narrative_text = f"""Executive Summary:
+{report.narrative.executive_summary}
 
---- USER-VERIFIED FACTS (Confirmed in Human Review Stage) ---
-{verified_facts_json}"""
-                verdict = check_consistency(complete_source, report_text)
+Key Takeaways:
+{chr(10).join(f'- {t}' for t in report.narrative.key_takeaways)}"""
+                
+                # Combine original notes + user-verified facts as the source of truth
+                verified_facts = st.session_state["facts"]
+                source_text = f"""{st.session_state["raw_text_context"]}
+
+--- USER-VERIFIED FACTS ---
+Event: {verified_facts.event_title or 'N/A'}
+Date: {verified_facts.date or 'N/A'}
+Venue: {verified_facts.venue or 'N/A'}
+Speaker: {verified_facts.speaker_name or 'N/A'}
+Organizer: {verified_facts.organizer or 'N/A'}
+Attendance: {verified_facts.attendance_count or 'N/A'}
+Mode: {verified_facts.mode or 'N/A'}
+Target Audience: {verified_facts.target_audience or 'N/A'}
+Volunteer Count: {verified_facts.volunteer_count or 'N/A'}
+Student Coordinators: {', '.join(verified_facts.student_coordinators) if verified_facts.student_coordinators else 'N/A'}
+Faculty Coordinators: {', '.join(verified_facts.faculty_coordinators) if verified_facts.faculty_coordinators else 'N/A'}
+Agenda: {verified_facts.agenda or 'N/A'}"""
+                
+                verdict = check_consistency(source_text, narrative_text)
             
             # Update confidence score from critic
             report.confidence_score = verdict.confidence
