@@ -193,10 +193,17 @@ elif st.session_state["stage"] == "verify":
                 confidence_score=1.0
             )
             
-            # Critic Pass
+            # Critic Pass - include verified facts as source of truth
+            # This prevents flagging user-edited fields as hallucinations
             with agent_spinner("Critic", "Verifying for hallucinations..."):
                 report_text = f"{report.facts}\n\n{report.narrative.executive_summary}\n\n{report.narrative.key_takeaways}"
-                verdict = check_consistency(st.session_state["raw_text_context"], report_text)
+                # Combine original notes + user-verified facts as the complete source
+                verified_facts_json = st.session_state["facts"].model_dump_json(exclude_none=True, indent=2)
+                complete_source = f"""{st.session_state["raw_text_context"]}
+
+--- USER-VERIFIED FACTS (Confirmed in Human Review Stage) ---
+{verified_facts_json}"""
+                verdict = check_consistency(complete_source, report_text)
             
             # Update confidence score from critic
             report.confidence_score = verdict.confidence
