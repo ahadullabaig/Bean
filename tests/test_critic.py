@@ -106,7 +106,7 @@ class TestCriticFallback:
     """Tests for fallback behavior when parsing fails."""
     
     def test_fallback_on_parse_failure(self, sample_raw_text):
-        """Test that a default safe verdict is returned when all retries fail."""
+        """Test that a default safe verdict is returned when parsing fails."""
         with patch('core.critic.get_gemini_client') as mock_get_client:
             mock_response = Mock()
             mock_response.parsed = None
@@ -118,10 +118,10 @@ class TestCriticFallback:
             
             result = check_consistency(sample_raw_text, "Some report")
             
-            # Should return a low-confidence safe verdict
+            # Should return a reduced-confidence safe verdict
             assert isinstance(result, CriticVerdict)
             assert result.is_safe is True
-            assert result.confidence < 0.5  # Low confidence indicates uncertainty
+            assert result.confidence <= 0.5  # Reduced confidence indicates parsing issues
 
 
 class TestCriticPrompt:

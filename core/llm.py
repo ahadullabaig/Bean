@@ -5,10 +5,12 @@ Provides a singleton client with:
 - Exponential backoff retry for transient failures
 - Streamlit-compatible caching
 - Centralized error handling
+- Rate limit detection (no retry on 429)
 """
 import os
 import logging
 from google import genai
+from google.genai.errors import ClientError
 from google.api_core import exceptions as google_exceptions
 from dotenv import load_dotenv
 from tenacity import (
@@ -27,9 +29,30 @@ logger = logging.getLogger(__name__)
 # Default model to use across the application
 DEFAULT_MODEL = "gemini-2.5-flash"
 
+
+class RateLimitError(Exception):
+    """
+    Custom exception for API rate limit errors.
+    This should NOT be retried - user must wait.
+    """
+    def __init__(self, message: str = "API rate limit exceeded", retry_after: int = 60):
+        self.message = message
+        self.retry_after = retry_after
+        super().__init__(self.message)
+
+
+def is_rate_limit_error(error: Exception) -> bool:
+    """Check if an exception is a rate limit (429) error."""
+    if isinstance(error, ClientError) and error.status_code == 429:
+        return True
+    if isinstance(error, google_exceptions.ResourceExhausted):
+        return True
+    return False
+
+
 # Exceptions that warrant a retry (transient failures)
+# Note: ResourceExhausted (429) is intentionally EXCLUDED - we handle it separately
 RETRYABLE_EXCEPTIONS = (
-    google_exceptions.ResourceExhausted,  # Rate limit / quota
     google_exceptions.ServiceUnavailable,  # Temporary outage
     google_exceptions.DeadlineExceeded,    # Timeout
     ConnectionError,
@@ -71,6 +94,8 @@ def reset_client():
 def create_retry_decorator(max_attempts: int = 3, min_wait: int = 2, max_wait: int = 10):
     """
     Creates a retry decorator with exponential backoff.
+    
+    Note: Does NOT retry on rate limit (429) errors - those require user to wait.
     
     Args:
         max_attempts: Maximum number of retry attempts

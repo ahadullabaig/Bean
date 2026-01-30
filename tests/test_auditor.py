@@ -106,7 +106,7 @@ class TestAuditorSelfCorrection:
             assert result.event_title == sample_event_facts.event_title
     
     def test_raises_after_max_retries(self, sample_raw_text):
-        """Test that ValueError is raised after max retries with bad JSON."""
+        """Test that ValueError is raised when parsing fails."""
         with patch('core.auditor.get_gemini_client') as mock_get_client:
             mock_response = Mock()
             mock_response.parsed = None
@@ -116,8 +116,8 @@ class TestAuditorSelfCorrection:
             mock_client.models.generate_content.return_value = mock_response
             mock_get_client.return_value = mock_client
             
-            with pytest.raises(ValueError, match="Failed to extract facts"):
-                extract_facts(sample_raw_text, max_retries=1)
+            with pytest.raises(ValueError, match="Failed to parse response"):
+                extract_facts(sample_raw_text)
 
 
 class TestAuditorPrompt:

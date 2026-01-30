@@ -12,6 +12,7 @@ from core.critic import check_consistency
 from core.ghostwriter import generate_narrative
 from core.renderer import render_report
 from core.templates import load_templates, get_builtin_templates, apply_template, increment_use_count
+from core.llm import reset_client, RateLimitError
 from ui.handlers import handle_text_process, handle_audio_process
 from ui.components import (
     render_smart_form, 
@@ -59,7 +60,10 @@ with st.sidebar:
     st.title("⚙️ Settings")
     api_key = st.text_input("Gemini API Key", type="password")
     if api_key:
-        os.environ["GEMINI_API_KEY"] = api_key
+        # Reset client if API key changed (ensures new key is used)
+        if os.environ.get("GEMINI_API_KEY") != api_key:
+            os.environ["GEMINI_API_KEY"] = api_key
+            reset_client()
     
     st.divider()
     st.caption("🫘 Bean v1.0")
@@ -115,6 +119,8 @@ if st.session_state["stage"] == "input":
         if process_btn and not st.session_state.get("processing"):
             if not raw_text.strip():
                 st.error("Please enter some text.")
+            elif not os.environ.get("GEMINI_API_KEY"):
+                st.error("⚠️ Please enter your Gemini API Key in the sidebar.")
             else:
                 st.session_state["processing"] = True
                 
@@ -141,10 +147,14 @@ if st.session_state["stage"] == "input":
                     
                     st.session_state["facts"] = extracted_facts
                     st.session_state["stage"] = "verify"
+                    st.rerun()
+                except RateLimitError as e:
+                    st.error(f"⏳ {e.message}")
+                    st.info("💡 **Tip:** The free tier allows ~15-20 requests/minute. Wait a moment and try again.")
+                except ValueError as e:
+                    st.error(f"❌ Processing failed: {e}")
                 finally:
                     st.session_state["processing"] = False
-                    
-                st.rerun()
 
     elif input_method == "Audio Recording":
         audio_val = st.audio_input("Record your notes")
@@ -168,32 +178,38 @@ elif st.session_state["stage"] == "verify":
     if updated_facts:
         st.session_state["facts"] = updated_facts
         
-        # Trigger Ghostwriter
-        with agent_spinner("Ghostwriter", "Drafting the narrative..."):
-            narrative = generate_narrative(
-                st.session_state["facts"], 
-                st.session_state["raw_text_context"]
+        try:
+            # Trigger Ghostwriter
+            with agent_spinner("Ghostwriter", "Drafting the narrative..."):
+                narrative = generate_narrative(
+                    st.session_state["facts"], 
+                    st.session_state["raw_text_context"]
+                )
+            
+            # Combine into Full Report
+            report = FullReport(
+                facts=st.session_state["facts"],
+                narrative=narrative,
+                confidence_score=1.0
             )
-        
-        # Combine into Full Report
-        report = FullReport(
-            facts=st.session_state["facts"],
-            narrative=narrative,
-            confidence_score=1.0
-        )
-        
-        # Critic Pass
-        with agent_spinner("Critic", "Verifying for hallucinations..."):
-            report_text = f"{report.facts}\n\n{report.narrative.executive_summary}\n\n{report.narrative.key_takeaways}"
-            verdict = check_consistency(st.session_state["raw_text_context"], report_text)
-        
-        # Update confidence score from critic
-        report.confidence_score = verdict.confidence
-        
-        st.session_state["final_report"] = report
-        st.session_state["critic_verdict"] = verdict
-        st.session_state["stage"] = "report"
-        st.rerun()
+            
+            # Critic Pass
+            with agent_spinner("Critic", "Verifying for hallucinations..."):
+                report_text = f"{report.facts}\n\n{report.narrative.executive_summary}\n\n{report.narrative.key_takeaways}"
+                verdict = check_consistency(st.session_state["raw_text_context"], report_text)
+            
+            # Update confidence score from critic
+            report.confidence_score = verdict.confidence
+            
+            st.session_state["final_report"] = report
+            st.session_state["critic_verdict"] = verdict
+            st.session_state["stage"] = "report"
+            st.rerun()
+        except RateLimitError as e:
+            st.error(f"⏳ {e.message}")
+            st.info("💡 **Tip:** The free tier allows ~15-20 requests/minute. Wait a moment and try again.")
+        except ValueError as e:
+            st.error(f"❌ Report generation failed: {e}")
 
 
 # --- STAGE 3: REPORT PREVIEW ---
