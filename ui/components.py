@@ -247,7 +247,7 @@ def render_smart_form(facts: EventFacts) -> EventFacts:
     # We create a dictionary to update, then reconstruct the object
     updated_data = facts.model_dump()
     
-    with st.form("smart_form"):
+    with st.form("smart_form", enter_to_submit=False):
         # Group fields into sections for better UX
         st.markdown("### 📋 Basic Information")
         col1, col2 = st.columns(2)
