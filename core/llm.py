@@ -41,12 +41,35 @@ class RateLimitError(Exception):
         super().__init__(self.message)
 
 
+class AuthenticationError(Exception):
+    """
+    Custom exception for invalid API key errors.
+    User needs to check/re-enter their API key.
+    """
+    def __init__(self, message: str = "Invalid API key. Please check your key and try again."):
+        self.message = message
+        super().__init__(self.message)
+
+
 def is_rate_limit_error(error: Exception) -> bool:
     """Check if an exception is a rate limit (429) error."""
     if isinstance(error, ClientError) and error.status_code == 429:
         return True
     if isinstance(error, google_exceptions.ResourceExhausted):
         return True
+    return False
+
+
+def is_auth_error(error: Exception) -> bool:
+    """Check if an exception is an authentication error (invalid API key)."""
+    if isinstance(error, ClientError):
+        # 401 = Unauthorized, 403 = Forbidden (both indicate invalid key)
+        if error.status_code in (401, 403):
+            return True
+        # Also check for specific error messages
+        error_str = str(error).lower()
+        if "api key" in error_str or "invalid" in error_str or "unauthorized" in error_str:
+            return True
     return False
 
 

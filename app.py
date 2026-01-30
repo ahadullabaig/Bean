@@ -12,7 +12,7 @@ from core.critic import check_consistency
 from core.ghostwriter import generate_narrative
 from core.renderer import render_report
 from core.templates import load_templates, get_builtin_templates, apply_template, increment_use_count
-from core.llm import reset_client, RateLimitError
+from core.llm import reset_client, RateLimitError, AuthenticationError
 from ui.handlers import handle_text_process, handle_audio_process
 from ui.components import (
     render_smart_form, 
@@ -195,6 +195,12 @@ if st.session_state["stage"] == "input":
                 except RateLimitError as e:
                     st.error(f"⏳ {e.message}")
                     st.info("💡 **Tip:** The free tier allows ~15-20 requests/minute. Wait a moment and try again.")
+                except AuthenticationError as e:
+                    st.error(f"🔑 {e.message}")
+                    st.warning("Your API key appears to be invalid. Please check that you've copied the full key from [Google AI Studio](https://aistudio.google.com/apikey).")
+                    if st.button("🔄 Enter a New API Key"):
+                        st.session_state["api_key"] = None
+                        st.rerun()
                 except ValueError as e:
                     st.error(f"❌ Processing failed: {e}")
                 finally:
@@ -278,6 +284,12 @@ Agenda: {verified_facts.agenda or 'N/A'}"""
         except RateLimitError as e:
             st.error(f"⏳ {e.message}")
             st.info("💡 **Tip:** The free tier allows ~15-20 requests/minute. Wait a moment and try again.")
+        except AuthenticationError as e:
+            st.error(f"🔑 {e.message}")
+            st.warning("Your API key appears to be invalid. Please check that you've copied the full key from [Google AI Studio](https://aistudio.google.com/apikey).")
+            if st.button("🔄 Enter a New API Key"):
+                st.session_state["api_key"] = None
+                st.rerun()
         except ValueError as e:
             st.error(f"❌ Report generation failed: {e}")
 
