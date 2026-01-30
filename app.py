@@ -45,6 +45,7 @@ def init_session_state():
         "processing": False,
         "docx_stream": None,
         "selected_template": None,
+        "api_key_set": False,  # Track if API key has been entered
     }
     for key, value in defaults.items():
         if key not in st.session_state:
@@ -53,17 +54,59 @@ def init_session_state():
 init_session_state()
 
 
-# --- SIDEBAR ---
+# --- API KEY GATE ---
+# Show API key entry screen if key not set
+if not st.session_state["api_key_set"] and not os.environ.get("GEMINI_API_KEY"):
+    # Centered welcome screen
+    st.markdown("<br><br>", unsafe_allow_html=True)
+    
+    col1, col2, col3 = st.columns([1, 2, 1])
+    with col2:
+        if os.path.exists("assets/ieee_header.png"):
+            st.image("assets/ieee_header.png", use_container_width=True)
+        
+        st.title("🫘 Bean")
+        st.markdown("*Turn your messy notes into professional IEEE reports.*")
+        
+        st.divider()
+        
+        st.markdown("### 🔑 Enter Your API Key")
+        st.caption("Get your free API key from [Google AI Studio](https://aistudio.google.com/apikey)")
+        
+        api_key_input = st.text_input(
+            "Gemini API Key", 
+            type="password",
+            placeholder="Paste your API key here...",
+            label_visibility="collapsed"
+        )
+        
+        if st.button("🚀 Get Started", use_container_width=True, type="primary"):
+            if api_key_input.strip():
+                os.environ["GEMINI_API_KEY"] = api_key_input.strip()
+                st.session_state["api_key_set"] = True
+                st.rerun()
+            else:
+                st.error("Please enter a valid API key.")
+        
+        st.divider()
+        st.caption("🔒 Your API key is stored only for this session and never saved.")
+    
+    st.stop()  # Don't render the rest of the app
+
+
+# --- SIDEBAR (shown after API key is set) ---
 with st.sidebar:
     if os.path.exists("assets/ieee_header.png"):
         st.image("assets/ieee_header.png", use_container_width=True)
     st.title("⚙️ Settings")
-    api_key = st.text_input("Gemini API Key", type="password")
-    if api_key:
-        # Reset client if API key changed (ensures new key is used)
-        if os.environ.get("GEMINI_API_KEY") != api_key:
-            os.environ["GEMINI_API_KEY"] = api_key
-            reset_client()
+    
+    # Show current API key status with option to change
+    st.success("✓ API Key Set")
+    if st.button("🔄 Change API Key", use_container_width=True):
+        st.session_state["api_key_set"] = False
+        os.environ.pop("GEMINI_API_KEY", None)
+        reset_client()
+        st.rerun()
     
     st.divider()
     st.caption("🫘 Bean v1.0")
