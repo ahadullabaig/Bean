@@ -203,7 +203,8 @@ if st.session_state["stage"] == "input":
                         st.session_state["api_key"] = None
                         st.session_state["stage"] = "input"  # Go back to API gate
                         reset_client(old_key)  # Clear cached invalid client
-                        st.rerun()
+                        # Use JS to trigger full page refresh for clean state
+                        st.markdown('<meta http-equiv="refresh" content="0">', unsafe_allow_html=True)
                 except ValueError as e:
                     st.error(f"❌ Processing failed: {e}")
                 finally:
@@ -295,7 +296,8 @@ Agenda: {verified_facts.agenda or 'N/A'}"""
                 st.session_state["api_key"] = None
                 st.session_state["stage"] = "input"  # Go back to API gate
                 reset_client(old_key)  # Clear cached invalid client
-                st.rerun()
+                # Use JS to trigger full page refresh for clean state
+                st.markdown('<meta http-equiv="refresh" content="0">', unsafe_allow_html=True)
         except ValueError as e:
             st.error(f"❌ Report generation failed: {e}")
 
