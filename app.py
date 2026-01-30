@@ -199,7 +199,10 @@ if st.session_state["stage"] == "input":
                     st.error(f"🔑 {e.message}")
                     st.warning("Your API key appears to be invalid. Please check that you've copied the full key from [Google AI Studio](https://aistudio.google.com/apikey).")
                     if st.button("🔄 Enter a New API Key"):
+                        old_key = st.session_state.get("api_key")
                         st.session_state["api_key"] = None
+                        st.session_state["stage"] = "input"  # Go back to API gate
+                        reset_client(old_key)  # Clear cached invalid client
                         st.rerun()
                 except ValueError as e:
                     st.error(f"❌ Processing failed: {e}")
@@ -288,7 +291,10 @@ Agenda: {verified_facts.agenda or 'N/A'}"""
             st.error(f"🔑 {e.message}")
             st.warning("Your API key appears to be invalid. Please check that you've copied the full key from [Google AI Studio](https://aistudio.google.com/apikey).")
             if st.button("🔄 Enter a New API Key"):
+                old_key = st.session_state.get("api_key")
                 st.session_state["api_key"] = None
+                st.session_state["stage"] = "input"  # Go back to API gate
+                reset_client(old_key)  # Clear cached invalid client
                 st.rerun()
         except ValueError as e:
             st.error(f"❌ Report generation failed: {e}")
