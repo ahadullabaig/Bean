@@ -53,8 +53,11 @@ class AuthenticationError(Exception):
 
 def is_rate_limit_error(error: Exception) -> bool:
     """Check if an exception is a rate limit (429) error."""
-    if isinstance(error, ClientError) and error.status_code == 429:
-        return True
+    if isinstance(error, ClientError):
+        # SDK versions may use 'status_code' or 'code' attribute
+        status = getattr(error, 'status_code', None) or getattr(error, 'code', None)
+        if status == 429:
+            return True
     if isinstance(error, google_exceptions.ResourceExhausted):
         return True
     return False
@@ -63,12 +66,17 @@ def is_rate_limit_error(error: Exception) -> bool:
 def is_auth_error(error: Exception) -> bool:
     """Check if an exception is an authentication error (invalid API key)."""
     if isinstance(error, ClientError):
-        # 401 = Unauthorized, 403 = Forbidden (both indicate invalid key)
-        if error.status_code in (401, 403):
-            return True
-        # Also check for specific error messages
+        # SDK versions may use 'status_code' or 'code' attribute
+        status = getattr(error, 'status_code', None) or getattr(error, 'code', None)
+        # 400 = API key invalid, 401 = Unauthorized, 403 = Forbidden
+        if status in (400, 401, 403):
+            # Check for specific API key error messages
+            error_str = str(error).lower()
+            if "api key" in error_str or "api_key_invalid" in error_str:
+                return True
+        # Also check for specific unauthorized messages
         error_str = str(error).lower()
-        if "api key" in error_str or "invalid" in error_str or "unauthorized" in error_str:
+        if "unauthorized" in error_str:
             return True
     return False
 
