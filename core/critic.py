@@ -23,7 +23,7 @@ REPORT_END = "</GENERATED_REPORT>"
 
 
 @llm_retry
-def check_consistency(original_text: str, report_text: str) -> CriticVerdict:
+def check_consistency(original_text: str, report_text: str, api_key: str = None) -> CriticVerdict:
     """
     Compares the generated report against the original text to find hallucinations.
     
@@ -37,6 +37,7 @@ def check_consistency(original_text: str, report_text: str) -> CriticVerdict:
     Args:
         original_text: The original user-provided notes
         report_text: The generated report to verify
+        api_key: Gemini API key for this session
     
     Returns:
         CriticVerdict: Structured verdict with is_safe, confidence, issues, and reasoning
@@ -44,7 +45,7 @@ def check_consistency(original_text: str, report_text: str) -> CriticVerdict:
     Raises:
         RateLimitError: If API rate limit is hit (user should wait)
     """
-    client = get_gemini_client()
+    client = get_gemini_client(api_key)
     
     prompt = f"""
 You are a strict Compliance Auditor. Your job is to verify that a Generated Report contains ONLY facts that are supported by the Source Text.

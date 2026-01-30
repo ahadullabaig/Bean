@@ -19,7 +19,7 @@ USER_INPUT_END = "</USER_INPUT>"
 
 
 @llm_retry
-def extract_facts(text: str) -> EventFacts:
+def extract_facts(text: str, api_key: str = None) -> EventFacts:
     """
     Uses a strict, low-temperature LLM call to extract specific event facts.
     
@@ -30,6 +30,7 @@ def extract_facts(text: str) -> EventFacts:
     
     Args:
         text: Raw event notes from user
+        api_key: Gemini API key for this session
     
     Returns:
         EventFacts: Validated Pydantic model with extracted data
@@ -38,7 +39,7 @@ def extract_facts(text: str) -> EventFacts:
         RateLimitError: If API rate limit is hit (user should wait)
         ValueError: If extraction fails
     """
-    client = get_gemini_client()
+    client = get_gemini_client(api_key)
     
     # Prompt with injection protection
     prompt = f"""

@@ -45,7 +45,7 @@ def init_session_state():
         "processing": False,
         "docx_stream": None,
         "selected_template": None,
-        "api_key_set": False,  # Track if API key has been entered
+        "api_key": None,  # User's API key (session-scoped, secure)
     }
     for key, value in defaults.items():
         if key not in st.session_state:
@@ -55,8 +55,8 @@ init_session_state()
 
 
 # --- API KEY GATE ---
-# Show API key entry screen if key not set
-if not st.session_state["api_key_set"] and not os.environ.get("GEMINI_API_KEY"):
+# Always require user to enter API key per session (stored in session state, not os.environ)
+if not st.session_state.get("api_key"):
     # Centered welcome screen
     st.markdown("<br><br>", unsafe_allow_html=True)
     
@@ -82,8 +82,8 @@ if not st.session_state["api_key_set"] and not os.environ.get("GEMINI_API_KEY"):
         
         if st.button("🚀 Get Started", use_container_width=True, type="primary"):
             if api_key_input.strip():
-                os.environ["GEMINI_API_KEY"] = api_key_input.strip()
-                st.session_state["api_key_set"] = True
+                # Store in session state ONLY (not os.environ - that's shared!)
+                st.session_state["api_key"] = api_key_input.strip()
                 st.rerun()
             else:
                 st.error("Please enter a valid API key.")
@@ -103,9 +103,10 @@ with st.sidebar:
     # Show current API key status with option to change
     st.success("✓ API Key Set")
     if st.button("🔄 Change API Key", use_container_width=True):
-        st.session_state["api_key_set"] = False
-        os.environ.pop("GEMINI_API_KEY", None)
-        reset_client()
+        # Clear from session state (the only place it's stored)
+        old_key = st.session_state.get("api_key")
+        st.session_state["api_key"] = None
+        reset_client(old_key)  # Clear cached client for this key
         st.rerun()
     
     st.divider()
@@ -162,15 +163,15 @@ if st.session_state["stage"] == "input":
         if process_btn and not st.session_state.get("processing"):
             if not raw_text.strip():
                 st.error("Please enter some text.")
-            elif not os.environ.get("GEMINI_API_KEY"):
-                st.error("⚠️ Please enter your Gemini API Key in the sidebar.")
+            elif not st.session_state.get("api_key"):
+                st.error("⚠️ Please enter your Gemini API Key first.")
             else:
                 st.session_state["processing"] = True
                 
                 try:
                     st.session_state["raw_text_context"] = raw_text
                     with agent_spinner("Auditor", "Extracting facts from your notes..."):
-                        extracted_facts = handle_text_process(raw_text)
+                        extracted_facts = handle_text_process(raw_text, st.session_state["api_key"])
                     
                     # Merge template defaults with extracted facts
                     if st.session_state.get("selected_template"):
@@ -226,7 +227,8 @@ elif st.session_state["stage"] == "verify":
             with agent_spinner("Ghostwriter", "Drafting the narrative..."):
                 narrative = generate_narrative(
                     st.session_state["facts"], 
-                    st.session_state["raw_text_context"]
+                    st.session_state["raw_text_context"],
+                    api_key=st.session_state["api_key"]
                 )
             
             # Combine into Full Report
@@ -264,7 +266,7 @@ Student Coordinators: {', '.join(verified_facts.student_coordinators) if verifie
 Faculty Coordinators: {', '.join(verified_facts.faculty_coordinators) if verified_facts.faculty_coordinators else 'N/A'}
 Agenda: {verified_facts.agenda or 'N/A'}"""
                 
-                verdict = check_consistency(source_text, narrative_text)
+                verdict = check_consistency(source_text, narrative_text, api_key=st.session_state["api_key"])
             
             # Update confidence score from critic
             report.confidence_score = verdict.confidence

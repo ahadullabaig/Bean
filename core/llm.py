@@ -60,35 +60,52 @@ RETRYABLE_EXCEPTIONS = (
 )
 
 
-# Singleton client instance
-_client_instance = None
+# Session-scoped client storage
+# Key: api_key hash -> Client instance (prevents cross-session contamination)
+_client_cache = {}
 
 
-def get_gemini_client():
+def get_gemini_client(api_key: str = None):
     """
-    Returns a cached Gemini client instance (singleton pattern).
-    Raises ValueError if GEMINI_API_KEY is missing.
+    Returns a Gemini client instance for the given API key.
     
-    Note: For Streamlit apps, consider using @st.cache_resource decorator
-    on this function for proper lifecycle management.
+    Uses a cache keyed by the API key to avoid recreating clients,
+    but each user session has its own key, preventing cross-session leaks.
+    
+    Args:
+        api_key: The Gemini API key. If None, falls back to environment variable
+                 (only for local development/testing).
+    
+    Raises:
+        ValueError: If no API key is provided or found.
     """
-    global _client_instance
+    global _client_cache
     
-    if _client_instance is not None:
-        return _client_instance
+    # Resolve API key
+    key = api_key or os.getenv("GEMINI_API_KEY")
+    if not key:
+        raise ValueError("No API key provided. Please enter your Gemini API key.")
     
-    api_key = os.getenv("GEMINI_API_KEY")
-    if not api_key:
-        raise ValueError("GEMINI_API_KEY not found in environment variables.")
+    # Return cached client for this key
+    if key in _client_cache:
+        return _client_cache[key]
     
-    _client_instance = genai.Client(api_key=api_key)
-    return _client_instance
+    # Create and cache new client
+    client = genai.Client(api_key=key)
+    _client_cache[key] = client
+    return client
 
 
-def reset_client():
-    """Reset the cached client (useful for testing or key rotation)."""
-    global _client_instance
-    _client_instance = None
+def reset_client(api_key: str = None):
+    """
+    Reset the cached client for a specific API key.
+    If no key provided, clears all cached clients.
+    """
+    global _client_cache
+    if api_key:
+        _client_cache.pop(api_key, None)
+    else:
+        _client_cache.clear()
 
 
 def create_retry_decorator(max_attempts: int = 3, min_wait: int = 2, max_wait: int = 10):

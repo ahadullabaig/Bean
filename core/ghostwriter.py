@@ -21,7 +21,7 @@ CONTEXT_END = "</STYLE_CONTEXT>"
 
 
 @llm_retry
-def generate_narrative(facts: EventFacts, raw_context: str) -> EventNarrative:
+def generate_narrative(facts: EventFacts, raw_context: str, api_key: str = None) -> EventNarrative:
     """
     Uses a creative, medium-temperature LLM call to write narrative sections.
     
@@ -34,6 +34,7 @@ def generate_narrative(facts: EventFacts, raw_context: str) -> EventNarrative:
     Args:
         facts: Verified EventFacts from the Auditor
         raw_context: Original user notes for tone/style matching
+        api_key: Gemini API key for this session
     
     Returns:
         EventNarrative: Professional summary and key takeaways
@@ -42,7 +43,7 @@ def generate_narrative(facts: EventFacts, raw_context: str) -> EventNarrative:
         RateLimitError: If API rate limit is hit (user should wait)
         ValueError: If generation fails
     """
-    client = get_gemini_client()
+    client = get_gemini_client(api_key)
     
     # Exclude None values to keep prompt clean
     facts_dict = facts.model_dump(exclude_none=True)
