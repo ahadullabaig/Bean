@@ -10,7 +10,7 @@ import os
 # Clean imports at top level
 from core.critic import check_consistency
 from core.ghostwriter import generate_narrative
-from core.renderer import render_report
+from core.renderer import render_report, render_pdf
 from core.templates import load_templates, get_builtin_templates, apply_template, increment_use_count
 from core.llm import reset_client, RateLimitError, AuthenticationError
 from ui.handlers import handle_text_process, handle_audio_process
@@ -163,6 +163,8 @@ if st.session_state["stage"] == "input":
         if process_btn and not st.session_state.get("processing"):
             if not raw_text.strip():
                 st.error("Please enter some text.")
+            elif len(raw_text) > 10000:
+                st.error(f"❌ Text is too long ({len(raw_text):,} characters). Maximum is 10,000 characters.")
             elif not st.session_state.get("api_key"):
                 st.error("⚠️ Please enter your Gemini API Key first.")
             else:
@@ -211,10 +213,67 @@ if st.session_state["stage"] == "input":
                     st.session_state["processing"] = False
 
     elif input_method == "Audio Recording":
+        st.caption("🎤 Record your event notes and Bean will extract the facts automatically.")
         audio_val = st.audio_input("Record your notes")
+        
         if audio_val:
-            st.info("Audio received.")
-            st.warning("🚧 Audio processing is under construction. Please use text for now.")
+            st.success("✅ Audio received! Click below to process.")
+            
+            # Double-click protected button
+            process_audio_btn = st.button(
+                "🚀 Process Audio", 
+                disabled=st.session_state.get("processing", False),
+                use_container_width=True
+            )
+            
+            if process_audio_btn and not st.session_state.get("processing"):
+                if not st.session_state.get("api_key"):
+                    st.error("⚠️ Please enter your Gemini API Key first.")
+                else:
+                    st.session_state["processing"] = True
+                    
+                    try:
+                        with agent_spinner("Auditor", "Listening to your recording..."):
+                            extracted_facts = handle_audio_process(audio_val, st.session_state["api_key"])
+                        
+                        if extracted_facts:
+                            # Store raw context as transcript note
+                            st.session_state["raw_text_context"] = "[Transcribed from audio recording]"
+                            
+                            # Merge template defaults with extracted facts
+                            if st.session_state.get("selected_template"):
+                                template = st.session_state["selected_template"]
+                                if not extracted_facts.organizer:
+                                    extracted_facts.organizer = template.default_organizer
+                                if not extracted_facts.mode:
+                                    extracted_facts.mode = template.default_mode
+                                if not extracted_facts.target_audience:
+                                    extracted_facts.target_audience = template.default_target_audience
+                                if not extracted_facts.agenda:
+                                    extracted_facts.agenda = template.suggested_agenda
+                                increment_use_count(template.id)
+                            
+                            st.session_state["facts"] = extracted_facts
+                            st.session_state["stage"] = "verify"
+                            st.rerun()
+                        else:
+                            st.error("❌ Could not extract facts from audio. Please try again or use text input.")
+                    except RateLimitError as e:
+                        st.error(f"⏳ {e.message}")
+                        st.info("💡 **Tip:** The free tier allows ~15-20 requests/minute. Wait a moment and try again.")
+                    except AuthenticationError as e:
+                        st.error(f"🔑 {e.message}")
+                        st.warning("Your API key appears to be invalid. Please check that you've copied the full key from [Google AI Studio](https://aistudio.google.com/apikey).")
+                        if st.button("🔄 Enter a New API Key", key="audio_new_key"):
+                            old_key = st.session_state.get("api_key")
+                            st.session_state["api_key"] = None
+                            st.session_state["stage"] = "input"
+                            reset_client(old_key)
+                            st.markdown('<meta http-equiv="refresh" content="0">', unsafe_allow_html=True)
+                    except ValueError as e:
+                        st.error(f"❌ Audio processing failed: {e}")
+                    finally:
+                        st.session_state["processing"] = False
 
 
 # --- STAGE 2: VERIFICATION (Smart Form) ---
@@ -360,29 +419,46 @@ elif st.session_state["stage"] == "report":
     st.divider()
     
     # Action Buttons
-    col1, col2 = st.columns(2)
+    col1, col2, col3 = st.columns(3)
     
     with col1:
         if st.button("📄 Generate DOCX", use_container_width=True):
-            with st.spinner("Generating document..."):
+            with st.spinner("Generating DOCX..."):
                 file_stream = render_report(report)
                 st.session_state["docx_stream"] = file_stream
     
     with col2:
+        if st.button("📕 Generate PDF", use_container_width=True):
+            with st.spinner("Generating PDF..."):
+                pdf_stream = render_pdf(report)
+                st.session_state["pdf_stream"] = pdf_stream
+    
+    with col3:
         if st.button("🔄 Start Over", use_container_width=True):
-            for key in ["stage", "facts", "final_report", "critic_verdict", "docx_stream", "selected_template"]:
+            for key in ["stage", "facts", "final_report", "critic_verdict", "docx_stream", "pdf_stream", "selected_template"]:
                 if key == "stage":
                     st.session_state[key] = "input"
                 else:
                     st.session_state[key] = None
             st.rerun()
     
-    # Download button (shown after generation)
-    if st.session_state.get("docx_stream"):
-        st.download_button(
-            label="📥 Download Report",
-            data=st.session_state["docx_stream"],
-            file_name=f"{report.facts.event_title or 'event'}_report.docx",
-            mime="application/vnd.openxmlformats-officedocument.wordprocessingml.document",
-            use_container_width=True
-        )
+    # Download buttons (shown after generation)
+    download_cols = st.columns(2)
+    with download_cols[0]:
+        if st.session_state.get("docx_stream"):
+            st.download_button(
+                label="📥 Download DOCX",
+                data=st.session_state["docx_stream"],
+                file_name=f"{report.facts.event_title or 'event'}_report.docx",
+                mime="application/vnd.openxmlformats-officedocument.wordprocessingml.document",
+                use_container_width=True
+            )
+    with download_cols[1]:
+        if st.session_state.get("pdf_stream"):
+            st.download_button(
+                label="📥 Download PDF",
+                data=st.session_state["pdf_stream"],
+                file_name=f"{report.facts.event_title or 'event'}_report.pdf",
+                mime="application/pdf",
+                use_container_width=True
+            )

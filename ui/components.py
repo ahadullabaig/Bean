@@ -257,10 +257,25 @@ def render_smart_form(facts: EventFacts) -> EventFacts:
                 "Event Title",
                 value=facts.event_title or ""
             )
-            updated_data["date"] = st.text_input(
-                "Date (YYYY-MM-DD)",
-                value=facts.date or ""
+            
+            # Date picker with graceful parsing of existing dates
+            existing_date = None
+            if facts.date:
+                from datetime import datetime
+                for fmt in ["%Y-%m-%d", "%d-%m-%Y", "%d/%m/%Y", "%Y/%m/%d"]:
+                    try:
+                        existing_date = datetime.strptime(facts.date, fmt).date()
+                        break
+                    except ValueError:
+                        continue
+            
+            date_value = st.date_input(
+                "Event Date",
+                value=existing_date,
+                format="YYYY-MM-DD"
             )
+            # Store as ISO format string for consistency
+            updated_data["date"] = date_value.isoformat() if date_value else None
             updated_data["venue"] = st.text_input(
                 "Venue",
                 value=facts.venue or ""
@@ -327,16 +342,68 @@ def render_smart_form(facts: EventFacts) -> EventFacts:
         new_judges = st.text_input("Judges (comma-separated)", value=judges_str)
         updated_data["judges"] = [x.strip() for x in new_judges.split(",") if x.strip()]
         
-        # Winners section
+        # Winners section - Now editable!
         st.markdown("### 🏆 Winners")
+        st.caption("Edit winner details or add new winners below.")
+        
+        # Build list of winners (editable)
+        edited_winners = []
+        
+        # Show existing winners in expanders
         if facts.winners:
             for i, winner in enumerate(facts.winners):
-                st.text(f"{winner.place}: {winner.team_name} - {winner.prize_money or 'No prize specified'}")
+                with st.expander(f"🥇 {winner.place or f'Winner {i+1}'}: {winner.team_name or 'Unnamed Team'}", expanded=False):
+                    col1, col2 = st.columns(2)
+                    with col1:
+                        place = st.selectbox(
+                            "Placement",
+                            ["First Place", "Second Place", "Third Place", "Runner Up", "Special Mention"],
+                            index=["First Place", "Second Place", "Third Place", "Runner Up", "Special Mention"].index(winner.place) if winner.place in ["First Place", "Second Place", "Third Place", "Runner Up", "Special Mention"] else 0,
+                            key=f"winner_place_{i}"
+                        )
+                        team_name = st.text_input("Team Name", value=winner.team_name or "", key=f"winner_team_{i}")
+                    with col2:
+                        prize = st.text_input("Prize", value=winner.prize_money or "", key=f"winner_prize_{i}")
+                        members_str = ", ".join(winner.members) if winner.members else ""
+                        new_members = st.text_input("Members (comma-separated)", value=members_str, key=f"winner_members_{i}")
+                    
+                    edited_winners.append(Winner(
+                        place=place,
+                        team_name=team_name if team_name else None,
+                        prize_money=prize if prize else None,
+                        members=[x.strip() for x in new_members.split(",") if x.strip()]
+                    ))
         else:
-            st.caption("No winners extracted. Add details in the notes if needed.")
+            st.info("No winners extracted. Use the button below to add winners if this is a competition.")
         
-        # Keep winners as-is (complex editing deferred)
-        updated_data["winners"] = facts.winners
+        # Add new winner button (outside the form, we store in session state)
+        if "new_winners_count" not in st.session_state:
+            st.session_state["new_winners_count"] = 0
+        
+        # Show fields for new winners
+        for j in range(st.session_state["new_winners_count"]):
+            with st.expander(f"➕ New Winner {j+1}", expanded=True):
+                col1, col2 = st.columns(2)
+                with col1:
+                    new_place = st.selectbox(
+                        "Placement",
+                        ["First Place", "Second Place", "Third Place", "Runner Up", "Special Mention"],
+                        key=f"new_winner_place_{j}"
+                    )
+                    new_team = st.text_input("Team Name", key=f"new_winner_team_{j}")
+                with col2:
+                    new_prize = st.text_input("Prize", key=f"new_winner_prize_{j}")
+                    new_members_str = st.text_input("Members (comma-separated)", key=f"new_winner_members_{j}")
+                
+                if new_team:  # Only add if team name provided
+                    edited_winners.append(Winner(
+                        place=new_place,
+                        team_name=new_team,
+                        prize_money=new_prize if new_prize else None,
+                        members=[x.strip() for x in new_members_str.split(",") if x.strip()]
+                    ))
+        
+        updated_data["winners"] = edited_winners
         
         st.divider()
         submitted = st.form_submit_button("✅ Confirm Facts & Generate Report", use_container_width=True)
