@@ -9,20 +9,22 @@ description = "AI-powered documentation agent for IEEE RIT-B event reports"
 readme = "README.md"
 requires-python = ">=3.10"
 authors = [
-    {name = "Ahad Ulla Baig", email = "ahadullabaig@gmail.com"}
+    {name = "Ahad Ulla Baig", email = "ahadullabaig.16@gmail.com"}
 ]
 keywords = ["ai", "documentation", "ieee", "streamlit", "gemini"]
 classifiers = [
-    "Development Status :: 4 - Beta",
+    "Development Status :: 5 - Production/Stable",
     "Environment :: Web Environment",
     "Framework :: Streamlit",
-    "Intended Audience :: Developers",
+    "Intended Audience :: End Users/Desktop",
+    "Intended Audience :: Other Audience",  # IEEE Execoms
     "Natural Language :: English",
     "Programming Language :: Python :: 3",
     "Programming Language :: Python :: 3.10",
     "Programming Language :: Python :: 3.11",
     "Programming Language :: Python :: 3.12",
     "Topic :: Text Processing :: General",
+    "Topic :: Office/Business :: Office Suites",
 ]
 dependencies = [
     "streamlit",
