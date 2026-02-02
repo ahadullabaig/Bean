@@ -63,7 +63,6 @@
 
 ### Export Options
 - **DOCX** — Template-based Word document generation
-- **PDF** — Native PDF export with professional formatting
 
 ### Session History
 - View all reports generated in current session
@@ -96,7 +95,7 @@ Bean's power comes from its multi-agent pipeline—not a single prompt, but spec
 | **AI** | Google GenAI SDK | Gemini 2.5 Flash with structured output |
 | **Validation** | Pydantic | Schema enforcement and self-correction |
 | **Retry** | Tenacity | Exponential backoff for API resilience |
-| **Documents** | docxtpl, reportlab | DOCX and PDF generation |
+| **Documents** | docxtpl | DOCX template generation |
 | **Testing** | Pytest | 68 tests with 52% coverage |
 
 ---
@@ -146,9 +145,7 @@ Review the **Smart Form** pre-filled by the Auditor. Edit any incorrect values i
 - Winners (with editable team details for competitions)
 
 ### Step 4: Generate and Download
-Watch the Ghostwriter draft your narrative, then the Critic verifies for hallucinations. Download your report as:
-- **DOCX** — Editable Word document
-- **PDF** — Print-ready format
+Watch the Ghostwriter draft your narrative, then the Critic verifies for hallucinations. Download your report as a **DOCX** file.
 
 ### Step 5: Save as Template (Optional)
 Save successful report structures for future use.
@@ -193,7 +190,7 @@ bean/
 │   ├── ghostwriter.py     # Narrative generation
 │   ├── critic.py          # Hallucination detection
 │   ├── llm.py             # Gemini client with retry logic
-│   ├── renderer.py        # DOCX and PDF generation
+│   ├── renderer.py        # DOCX document generation
 │   └── templates.py       # Event template library
 ├── models/
 │   └── schemas.py         # Pydantic schemas (EventFacts, CriticVerdict, etc.)

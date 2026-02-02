@@ -35,7 +35,6 @@ dependencies = [
     "tenacity",
     "docxtpl",
     "python-docx",
-    "reportlab",
 ]
 
 [project.optional-dependencies]

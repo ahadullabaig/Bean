@@ -10,7 +10,7 @@ import os
 # Clean imports at top level
 from core.critic import check_consistency
 from core.ghostwriter import generate_narrative
-from core.renderer import render_report, render_pdf
+from core.renderer import render_report
 from core.templates import load_templates, get_builtin_templates, apply_template, increment_use_count
 from core.llm import reset_client, RateLimitError, AuthenticationError
 from ui.handlers import handle_text_process, handle_audio_process
@@ -462,7 +462,7 @@ elif st.session_state["stage"] == "report":
     st.divider()
     
     # Action Buttons
-    col1, col2, col3 = st.columns(3)
+    col1, col2 = st.columns(2)
     
     with col1:
         if st.button("📄 Generate DOCX", use_container_width=True):
@@ -471,37 +471,20 @@ elif st.session_state["stage"] == "report":
                 st.session_state["docx_stream"] = file_stream
     
     with col2:
-        if st.button("📕 Generate PDF", use_container_width=True):
-            with st.spinner("Generating PDF..."):
-                pdf_stream = render_pdf(report)
-                st.session_state["pdf_stream"] = pdf_stream
-    
-    with col3:
         if st.button("🔄 Start Over", use_container_width=True):
-            for key in ["stage", "facts", "final_report", "critic_verdict", "docx_stream", "pdf_stream", "selected_template"]:
+            for key in ["stage", "facts", "final_report", "critic_verdict", "docx_stream", "selected_template"]:
                 if key == "stage":
                     st.session_state[key] = "input"
                 else:
                     st.session_state[key] = None
             st.rerun()
     
-    # Download buttons (shown after generation)
-    download_cols = st.columns(2)
-    with download_cols[0]:
-        if st.session_state.get("docx_stream"):
-            st.download_button(
-                label="📥 Download DOCX",
-                data=st.session_state["docx_stream"],
-                file_name=f"{report.facts.event_title or 'event'}_report.docx",
-                mime="application/vnd.openxmlformats-officedocument.wordprocessingml.document",
-                use_container_width=True
-            )
-    with download_cols[1]:
-        if st.session_state.get("pdf_stream"):
-            st.download_button(
-                label="📥 Download PDF",
-                data=st.session_state["pdf_stream"],
-                file_name=f"{report.facts.event_title or 'event'}_report.pdf",
-                mime="application/pdf",
-                use_container_width=True
-            )
+    # Download button (shown after generation)
+    if st.session_state.get("docx_stream"):
+        st.download_button(
+            label="📥 Download DOCX",
+            data=st.session_state["docx_stream"],
+            file_name=f"{report.facts.event_title or 'event'}_report.docx",
+            mime="application/vnd.openxmlformats-officedocument.wordprocessingml.document",
+            use_container_width=True
+        )

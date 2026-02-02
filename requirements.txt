@@ -8,4 +8,3 @@ pytest
 pytest-cov
 docxtpl
 python-docx
-reportlab
