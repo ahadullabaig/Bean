@@ -32,6 +32,7 @@ class EventFacts(BaseModel):
 class EventNarrative(BaseModel):
     executive_summary: str = Field(..., description="A professional summary of the event")
     key_takeaways: List[str] = Field(default_factory=list, description="Bullet points of high-level outcomes or topics covered")
+    hashtags: List[str] = Field(default_factory=list, description="4-6 relevant hashtags for the event without # symbol")
 
 # Layer 3: The Critic's Domain (Hallucination Check)
 class CriticVerdict(BaseModel):
