@@ -6,6 +6,6 @@ __pycache__/
 *_report.docx
 .pytest_cache/
 venv/
-.streamlit/
+.streamlit/secrets.toml
 audit/
 *.log
