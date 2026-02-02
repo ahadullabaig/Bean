@@ -57,11 +57,26 @@
 - Template defaults auto-fill extracted facts
 - Usage tracking for popular templates
 
+### Multiple Input Methods
+- **Text Notes** — Paste or type your event notes directly
+- **Audio Recording** — Record notes and let Gemini transcribe and extract facts
+
+### Export Options
+- **DOCX** — Template-based Word document generation
+- **PDF** — Native PDF export with professional formatting
+
+### Session History
+- View all reports generated in current session
+- Load and revisit previous reports from sidebar
+- Quick access to confidence scores and metadata
+
 ### Production-Ready Reliability
 - **Exponential backoff retry** on API failures
 - **Double-click protection** prevents duplicate submissions
 - **Response caching** for identical inputs
-- **92% test coverage** with 37 unit tests
+- **Input validation** with character limits
+- **Dark mode** enabled by default
+- **68 unit tests** across all modules
 
 ---
 
@@ -79,10 +94,10 @@ Bean's power comes from its multi-agent pipeline—not a single prompt, but spec
 |-------|------------|---------|
 | **UI** | Streamlit | Reactive agent interface with progress stepper |
 | **AI** | Google GenAI SDK | Gemini 2.5 Flash with structured output |
-| **Validation** | Pydantic | Schema enforcement & self-correction |
+| **Validation** | Pydantic | Schema enforcement and self-correction |
 | **Retry** | Tenacity | Exponential backoff for API resilience |
-| **Documents** | docxtpl | Template-based DOCX generation |
-| **Testing** | Pytest | 37 tests with 92% coverage |
+| **Documents** | docxtpl, reportlab | DOCX and PDF generation |
+| **Testing** | Pytest | 68 tests with 52% coverage |
 
 ---
 
@@ -102,7 +117,7 @@ cd bean
 # Install dependencies
 pip install -r requirements.txt
 
-# Configure API key
+# Configure API key (optional - can enter in app)
 echo "GEMINI_API_KEY=your_key_here" > .env
 
 # Run the application
@@ -117,14 +132,23 @@ streamlit run app.py
 Select from 5 built-in event types or start from scratch.
 
 ### Step 2: Input Your Notes
-Paste your raw, unstructured event notes. Example:
+Choose between two input methods:
+- **Text Notes**: Paste your raw, unstructured event notes
+- **Audio Recording**: Record your notes directly in the browser
+
+Example input:
 > "We conducted a Machine Learning Workshop on 25th January 2024. Dr. Sharma was the speaker. Around 85 students attended..."
 
 ### Step 3: Verify Extracted Facts
-Review the **Smart Form** pre-filled by the Auditor. Edit any incorrect values using the intuitive grouped layout.
+Review the **Smart Form** pre-filled by the Auditor. Edit any incorrect values including:
+- Event details (title, date, venue)
+- People (coordinators, judges, speakers)
+- Winners (with editable team details for competitions)
 
-### Step 4: Generate & Download
-Watch the Ghostwriter draft your narrative, then the Critic verifies for hallucinations. Download your polished `.docx` report.
+### Step 4: Generate and Download
+Watch the Ghostwriter draft your narrative, then the Critic verifies for hallucinations. Download your report as:
+- **DOCX** — Editable Word document
+- **PDF** — Print-ready format
 
 ### Step 5: Save as Template (Optional)
 Save successful report structures for future use.
@@ -140,16 +164,20 @@ Bean includes a comprehensive test suite covering all core modules.
 pytest tests/ -v
 
 # Run with coverage report
-pytest tests/ --cov=core --cov-report=term-missing
+pytest tests/ --cov=core --cov=ui --cov=models --cov-report=term-missing
 ```
 
 | Module | Tests | Coverage |
 |--------|-------|----------|
-| `auditor.py` | 8 | 95% |
-| `critic.py` | 7 | 96% |
-| `ghostwriter.py` | 8 | 96% |
-| `renderer.py` | 14 | 100% |
-| **Total** | **37** | **92%** |
+| `auditor.py` | 8 | 73% |
+| `critic.py` | 7 | 79% |
+| `ghostwriter.py` | 8 | 76% |
+| `renderer.py` | 14 | 44% |
+| `templates.py` | 10 | 97% |
+| `handlers.py` | 8 | 69% |
+| `llm.py` | 12 | 82% |
+| `schemas.py` | - | 100% |
+| **Total** | **68** | **52%** |
 
 ---
 
@@ -158,26 +186,33 @@ pytest tests/ --cov=core --cov-report=term-missing
 ```
 bean/
 ├── app.py                 # Main Streamlit application
+├── pyproject.toml         # Project metadata and dependencies
+├── requirements.txt       # Pip dependencies
 ├── core/                  # AI Agents
 │   ├── auditor.py         # Fact extraction with self-correction
 │   ├── ghostwriter.py     # Narrative generation
 │   ├── critic.py          # Hallucination detection
 │   ├── llm.py             # Gemini client with retry logic
-│   ├── renderer.py        # DOCX document generation
+│   ├── renderer.py        # DOCX and PDF generation
 │   └── templates.py       # Event template library
 ├── models/
 │   └── schemas.py         # Pydantic schemas (EventFacts, CriticVerdict, etc.)
 ├── ui/
 │   ├── components.py      # Progress stepper, badges, template selector
-│   └── handlers.py        # Input processing with caching
+│   └── handlers.py        # Text and audio input processing
 ├── templates/             # Custom user templates (JSON)
 ├── tests/                 # Pytest test suite
 │   ├── conftest.py        # Fixtures and mocks
 │   ├── test_auditor.py
 │   ├── test_critic.py
 │   ├── test_ghostwriter.py
-│   └── test_renderer.py
-└── assets/                # Static images
+│   ├── test_renderer.py
+│   ├── test_templates.py
+│   ├── test_handlers.py
+│   └── test_llm.py
+├── assets/                # Static images
+└── .streamlit/
+    └── config.toml        # Dark mode theme configuration
 ```
 
 ---
