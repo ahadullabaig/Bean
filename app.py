@@ -110,6 +110,39 @@ with st.sidebar:
         st.rerun()
     
     st.divider()
+    
+    # --- SESSION HISTORY ---
+    st.subheader("📚 Session History")
+    
+    # Initialize history in session state
+    if "report_history" not in st.session_state:
+        st.session_state["report_history"] = []
+    
+    history = st.session_state["report_history"]
+    
+    if history:
+        st.caption(f"{len(history)} report(s) generated this session")
+        
+        for i, report_entry in enumerate(reversed(history)):
+            report = report_entry["report"]
+            timestamp = report_entry["timestamp"]
+            title = report.facts.event_title or f"Report #{len(history) - i}"
+            
+            with st.expander(f"📄 {title[:25]}...", expanded=False):
+                st.caption(f"Generated: {timestamp}")
+                st.markdown(f"**Confidence:** {report.confidence_score:.0%}")
+                st.markdown(f"**Venue:** {report.facts.venue or 'N/A'}")
+                
+                if st.button("📂 Load This Report", key=f"load_history_{i}", use_container_width=True):
+                    st.session_state["final_report"] = report
+                    st.session_state["facts"] = report.facts
+                    st.session_state["stage"] = "report"
+                    st.rerun()
+    else:
+        st.caption("No reports generated yet.")
+        st.caption("Generate a report to see it here.")
+    
+    st.divider()
     st.caption("🫘 Bean v1.0")
     st.caption("Powered by Google Gemini")
 
@@ -342,6 +375,16 @@ Agenda: {verified_facts.agenda or 'N/A'}"""
             
             st.session_state["final_report"] = report
             st.session_state["critic_verdict"] = verdict
+            
+            # Save to session history
+            from datetime import datetime
+            if "report_history" not in st.session_state:
+                st.session_state["report_history"] = []
+            st.session_state["report_history"].append({
+                "report": report,
+                "timestamp": datetime.now().strftime("%H:%M")
+            })
+            
             st.session_state["stage"] = "report"
             st.rerun()
         except RateLimitError as e:

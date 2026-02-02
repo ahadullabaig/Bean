@@ -1,0 +1,57 @@
+[build-system]
+requires = ["setuptools>=61.0"]
+build-backend = "setuptools.build_meta"
+
+[project]
+name = "bean"
+version = "1.0.0"
+description = "AI-powered documentation agent for IEEE RIT-B event reports"
+readme = "README.md"
+requires-python = ">=3.10"
+authors = [
+    {name = "Ahad Ulla Baig", email = "ahadullabaig@gmail.com"}
+]
+keywords = ["ai", "documentation", "ieee", "streamlit", "gemini"]
+classifiers = [
+    "Development Status :: 4 - Beta",
+    "Environment :: Web Environment",
+    "Framework :: Streamlit",
+    "Intended Audience :: Developers",
+    "Natural Language :: English",
+    "Programming Language :: Python :: 3",
+    "Programming Language :: Python :: 3.10",
+    "Programming Language :: Python :: 3.11",
+    "Programming Language :: Python :: 3.12",
+    "Topic :: Text Processing :: General",
+]
+dependencies = [
+    "streamlit",
+    "pydantic",
+    "google-genai",
+    "google-api-core",
+    "python-dotenv",
+    "tenacity",
+    "docxtpl",
+    "python-docx",
+    "reportlab",
+]
+
+[project.optional-dependencies]
+dev = [
+    "pytest",
+    "pytest-cov",
+]
+
+[project.urls]
+Homepage = "https://github.com/ahadullabaig/bean"
+Documentation = "https://github.com/ahadullabaig/bean#readme"
+Repository = "https://github.com/ahadullabaig/bean"
+
+[tool.pytest.ini_options]
+testpaths = ["tests"]
+python_files = ["test_*.py"]
+addopts = "-v --tb=short"
+
+[tool.coverage.run]
+source = ["core", "ui", "models"]
+omit = ["tests/*"]

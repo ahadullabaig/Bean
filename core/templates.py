@@ -5,10 +5,13 @@ Provides functions to save, load, and manage reusable event templates.
 Templates are stored as JSON files in the templates/ directory.
 """
 import json
+import logging
 import os
 from datetime import datetime
 from pathlib import Path
 from typing import List, Optional
+
+logger = logging.getLogger(__name__)
 
 from models.schemas import EventTemplate, EventFacts
 
@@ -62,8 +65,11 @@ def load_templates() -> List[EventTemplate]:
         try:
             data = json.loads(file.read_text())
             templates.append(EventTemplate(**data))
-        except (json.JSONDecodeError, Exception):
-            # Skip invalid template files
+        except json.JSONDecodeError as e:
+            logger.warning(f"Skipping corrupt template {file.name}: JSON decode error - {e}")
+            continue
+        except Exception as e:
+            logger.warning(f"Skipping invalid template {file.name}: {e}")
             continue
     
     # Sort by use count (most popular first)
