@@ -403,6 +403,14 @@ def render_smart_form(facts: EventFacts) -> EventFacts:
                         members=[x.strip() for x in new_members_str.split(",") if x.strip()]
                     ))
         
+        # Button to add a new winner field
+        if st.form_submit_button("➕ Add Another Winner", type="secondary"):
+            # Save current state to preserve edits
+            updated_data["winners"] = edited_winners
+            st.session_state["facts"] = EventFacts(**updated_data)
+            st.session_state["new_winners_count"] += 1
+            st.rerun()
+
         updated_data["winners"] = edited_winners
         
         st.divider()
