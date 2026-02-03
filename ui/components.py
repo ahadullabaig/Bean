@@ -254,7 +254,7 @@ def render_smart_form(facts: EventFacts) -> EventFacts:
         
         with col1:
             updated_data["event_title"] = st.text_input(
-                "Event Title",
+                "Event Title *",
                 value=facts.event_title or ""
             )
             
@@ -270,14 +270,14 @@ def render_smart_form(facts: EventFacts) -> EventFacts:
                         continue
             
             date_value = st.date_input(
-                "Event Date",
+                "Event Date *",
                 value=existing_date,
                 format="YYYY-MM-DD"
             )
             # Store as ISO format string for consistency
             updated_data["date"] = date_value.isoformat() if date_value else None
             updated_data["venue"] = st.text_input(
-                "Venue",
+                "Venue *",
                 value=facts.venue or ""
             )
         
@@ -292,7 +292,7 @@ def render_smart_form(facts: EventFacts) -> EventFacts:
                 min_value=0
             )
             updated_data["mode"] = st.selectbox(
-                "Mode",
+                "Mode *",
                 ["Offline", "Online", "Hybrid"],
                 index=["Offline", "Online", "Hybrid"].index(facts.mode) if facts.mode in ["Offline", "Online", "Hybrid"] else 0
             )
@@ -302,7 +302,7 @@ def render_smart_form(facts: EventFacts) -> EventFacts:
         
         with col1:
             updated_data["organizer"] = st.text_input(
-                "Organizer",
+                "Organizer *",
                 value=facts.organizer or "IEEE RIT Student Branch"
             )
             
@@ -409,6 +409,21 @@ def render_smart_form(facts: EventFacts) -> EventFacts:
         submitted = st.form_submit_button("✅ Confirm Facts & Generate Report", use_container_width=True)
     
     if submitted:
+        # Validate required fields
+        required_fields = {
+            "Event Title": updated_data.get("event_title"),
+            "Event Date": updated_data.get("date"),
+            "Venue": updated_data.get("venue"),
+            "Mode": updated_data.get("mode"),
+            "Organizer": updated_data.get("organizer"),
+        }
+        
+        missing = [key for key, val in required_fields.items() if not val or not str(val).strip()]
+        
+        if missing:
+            st.error(f"❌ Please fill in the following required fields: {', '.join(missing)}")
+            return None
+            
         return EventFacts(**updated_data)
     
     return None
