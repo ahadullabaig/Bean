@@ -9,3 +9,7 @@ venv/
 .streamlit/secrets.toml
 audit/
 *.log
+
+GEMINI.md
+
+.coverage
